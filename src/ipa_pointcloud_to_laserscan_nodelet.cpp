@@ -138,6 +138,17 @@ namespace pointcloud_to_laserscan
 
   void PointCloudToLaserScanNodelet::cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
   {
+    // convert const ptr to ptr to support downsampling
+    sensor_msgs::PointCloud2Ptr cloud(boost::const_pointer_cast<sensor_msgs::PointCloud2>(cloud_msg));
+
+    // remove leading / on frame id in case present, which is not supported by tf2
+    // e.g. HACK to be compatible with non tf2 supporting bag files
+    // does not do anything if the problem dies not occur -> leave for bagfile compatibility
+    if(cloud_msg->header.frame_id.find_first_of("/") == 0)
+    { 
+      cloud->header.frame_id.erase(0,1);
+    }
+    // End hack for tf2 compatibility
 
     //build laserscan output
     sensor_msgs::LaserScan output;
