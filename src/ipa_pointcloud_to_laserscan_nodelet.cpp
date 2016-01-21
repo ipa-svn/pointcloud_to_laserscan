@@ -47,8 +47,19 @@
 #include <tf2_sensor_msgs/tf2_sensor_msgs.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
+#include <pcl_ros/point_cloud.h>
+#include <pcl_ros/io/pcd_io.h>
+#include <pcl/io/io.h>
+#include <pcl/point_types.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/range_image/range_image.h>
+#include <pcl/filters/radius_outlier_removal.h>
+#include <pcl/filters/voxel_grid.h>
+
+
 namespace pointcloud_to_laserscan
 {
+  void outlier_removal_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::IndicesPtr &indices);
 
   PointCloudToLaserScanNodelet::PointCloudToLaserScanNodelet() {}
 
@@ -231,12 +242,29 @@ namespace pointcloud_to_laserscan
       output.ranges.assign(ranges_size, output.range_max + 1.0);
     }
 
-    // Iterate through pointcloud
-    for (sensor_msgs::PointCloud2Iterator<float>
+    //NODELET_ERROR_STREAM("processing cloud");
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZ> ());
+    pcl::PointCloud<pcl::PointXYZ>::Ptr reduced_pcl_cloud(new pcl::PointCloud<pcl::PointXYZ> ());
+
+    pcl::fromROSMsg (*cloud, *pcl_cloud);
+
+    std::vector<int> indices;
+    pcl::removeNaNFromPointCloud(*pcl_cloud,*pcl_cloud, indices);
+    indices.clear();
+    int n_points = pcl_cloud->size();
+    for(int i = 0; i < n_points; i++)
+        // Iterate through pointcloud
+        /*for (sensor_msgs::PointCloud2ConstIterator<float>
               iter_x(*cloud, "x"), iter_y(*cloud, "y"), iter_z(*cloud, "z");
               iter_x != iter_x.end();
-              ++iter_x, ++iter_y, ++iter_z)
+              ++iter_x, ++iter_y, ++iter_z)*/
     {
+        float* iter_x = &pcl_cloud->points[i].x;
+        float* iter_y = &pcl_cloud->points[i].y;
+        float* iter_z = &pcl_cloud->points[i].z;
+
+
         if (std::isnan(*iter_x) || std::isnan(*iter_y) || std::isnan(*iter_z))
         {
             NODELET_DEBUG("rejected for nan in point(%f, %f, %f)\n", *iter_x, *iter_y, *iter_z);
@@ -285,6 +313,39 @@ namespace pointcloud_to_laserscan
             continue;
         }
 
+        reduced_pcl_cloud->points.push_back(pcl_cloud->points[i]);
+    }
+    //n_points = pcl_cloud->size();
+    //NODELET_ERROR_STREAM("pcl cloud size: " << n_points);
+    // Filter pointcloud TODO limit even more, still takes too long use indecis instead?
+    ros::Time start_dsc_time = ros::Time::now();
+    outlier_removal_filter(reduced_pcl_cloud, filter_i);
+    ros::Time end_dsc_time = ros::Time::now();
+    //NODELET_ERROR_STREAM("pcl cloud size: " << n_points);
+    // project pointcloud to scan
+    n_points = reduced_pcl_cloud->size();
+    for (int j = 0; j < n_points; j++)
+    {
+        float* iter_x = &reduced_pcl_cloud->points[j].x;
+        float* iter_y = &reduced_pcl_cloud->points[j].y;
+        float* iter_z = &reduced_pcl_cloud->points[j].z;
+
+        //get reflection point in hight limiting planes in order to check that point lies between borders(above or below is not clearly def):
+        tf2::Vector3 P(*iter_x, *iter_y, *iter_z);
+        /* lambda x and y describes the location within the planes, which are the same for all paralell planes with
+         aligned origin -> calculate only once for the plane at height of target frame.
+         If assumption not hold, use one set of lambda per plane (use the A value of that specific plane like this:
+
+         double lambda_x_max =  (P - A_max_o_frame).dot(ex_o_frame);
+
+         For now we assume tahat a common set of lambdas hold:
+        */
+
+        double lambda_x =  (P - A_target_o_frame).dot(ex_o_frame);
+        double lambda_y =  (P - A_target_o_frame).dot(ey_o_frame);
+        double range = hypot(lambda_x, lambda_y);
+        double angle = atan2(lambda_y, lambda_x);
+
         //overwrite range at laserscan ray if new range is smaller
         int index = (angle - output.angle_min) / output.angle_increment;
         if (range < output.ranges[index])
@@ -297,14 +358,15 @@ namespace pointcloud_to_laserscan
     pub_.publish(output);
   }
 
-      {
-      }
-
-      {
-      }
-
-      {
-      }
+  void outlier_removal_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::IndicesPtr &indices)
+  {
+      // Create the filtering object
+      pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+      sor.setInputCloud (cloud_in);
+      //sor.setIndices(indices);
+      sor.setMeanK (50);
+      sor.setStddevMulThresh (1.0);
+      sor.filter (*cloud_in);
   }
 }
 
