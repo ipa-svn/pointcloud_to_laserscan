@@ -47,8 +47,11 @@
 #include <tf2_sensor_msgs/tf2_sensor_msgs.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
+#include <iostream>
+
 namespace pointcloud_to_laserscan
 {
+  void scan_outlier_removal_filter(sensor_msgs::LaserScan &scan, double cluster_break_distance, int max_noise_cluster_size);
 
   PointCloudToLaserScanNodelet::PointCloudToLaserScanNodelet() {}
 
@@ -141,6 +144,14 @@ namespace pointcloud_to_laserscan
 
   void PointCloudToLaserScanNodelet::cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
   {
+    // Get filter related parameters
+    bool use_outlier_filter;
+    double cluster_break_distance;
+    int max_noise_cluster_size;
+    private_nh_.param<bool>("use_outlier_filter", use_outlier_filter, true);
+    private_nh_.param<double>("cluster_break_distance", cluster_break_distance, 0.3);
+    private_nh_.param<int>("max_noise_cluster_size", max_noise_cluster_size, 5);
+
     // convert const ptr to ptr to support downsampling
     sensor_msgs::PointCloud2Ptr cloud(boost::const_pointer_cast<sensor_msgs::PointCloud2>(cloud_msg));
 
@@ -294,16 +305,80 @@ namespace pointcloud_to_laserscan
 
     }
 
+    if(use_outlier_filter)
+    {
+        scan_outlier_removal_filter(output, cluster_break_distance, max_noise_cluster_size);
+    }
+
     pub_.publish(output);
   }
 
+  /**
+   * @brief scan_outlier_removal_filter
+   * Remove clusters that are small enough (specified by parameter max_noise_cluster_size) and
+   * closer to the sensor (has smaller range) than the surrounding clusters.
+   * A cluster is defined as a collection of point with a specified range jump (specified by parameter cluster_break_distance) to neigboring points.
+   * The "closer to the sensor" is determined by the sign of the range jump at the beginning and end of the cluster.
+   *
+   * The implementation assumes ordered scan, meaning that the points are sorted according to the angle.
+   *
+   * @param scan The 2d sensor msgs laser scan
+   * @param cluster_break_distance The range jump to cause a cluster separation
+   * @param max_noise_cluster_size The maximum number of points a cluster can contain in order to be seen as noise and thereby removed
+   */
+  void scan_outlier_removal_filter(sensor_msgs::LaserScan &scan, double cluster_break_distance, int max_noise_cluster_size)
+  {
+      // help function initialization
+      int ranges_size = scan.ranges.size();
+      int i_current_cluster = 0;
+      bool cluster_further_away = false;
+      std::vector<int> cluster_indecies;
+      double diffs[ranges_size-1];
+
+      // calculate diffs
+      for (int i = 1; i< ranges_size; i++)
       {
+          diffs[i-1] = scan.ranges[i] - scan.ranges[i-1];
       }
 
+      // find and remove outliers
+      for (int i = 0; i< ranges_size-1; i++)
       {
+          // add point to cluster
+          cluster_indecies.push_back(i);
+          i_current_cluster ++;
+
+          // check if last point in cluster; find diff larger than border -> cluster separation
+          if (diffs[i] > cluster_break_distance || diffs[i] < -cluster_break_distance)
+          {
+              bool new_cluster_further_away = (diffs[i] > 0);
+
+              // Only remove cluster if it is closer than surrounding clusters
+              if ((i_current_cluster < max_noise_cluster_size) && (new_cluster_further_away != cluster_further_away))
+              {
+                  for (int k = 0; k < i_current_cluster; k++)
+                  {
+                      scan.ranges[cluster_indecies[k]] = scan.range_max;
+                  }
+              }
+
+              // initialize new cluster
+              cluster_further_away = new_cluster_further_away;
+              cluster_indecies.clear();
+              i_current_cluster = 0;
+          }
       }
 
+
+      // remove last cluster if small enough
+      if ((i_current_cluster < cluster_break_distance) && !cluster_further_away)
       {
+          for (int k = 0; k < i_current_cluster; k++)
+          {
+              scan.ranges[cluster_indecies[k]] = scan.range_max;
+          }
+          // remove last point as well
+          scan.ranges[ranges_size-1] = scan.range_max;
       }
   }
 }
