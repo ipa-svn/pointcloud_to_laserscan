@@ -170,6 +170,8 @@ namespace pointcloud_to_laserscan
       cloud->header.frame_id.erase(0,1);
     }
     // End hack for tf2 compatibility
+    // Uncomment to start time measurement
+    //ros::Time start_time = ros::Time::now();
 
     // Get frame tranformation
     tf2::Transform T;
@@ -220,6 +222,8 @@ namespace pointcloud_to_laserscan
     tf2::Vector3 A_target_t_frame(0, 0, 0);
     tf2::Vector3 A_target_o_frame = T(A_target_t_frame);
 
+    // Uncomment to start loop time measurement
+    //ros::Time start_loop_time = ros::Time::now();
     //build laserscan output
     sensor_msgs::LaserScan output;
     output.header = cloud_msg->header;
@@ -266,6 +270,8 @@ namespace pointcloud_to_laserscan
     //pclv.addPointCloud(pcl_cloud, "unfiltered");
     //pclv.spin();
     int n_points = pcl_cloud->size();
+    //NODELET_ERROR_STREAM("pcl cloud size: " << n_points);
+    //ros::Time start_selection_time = ros::Time::now();
     for(int i = 0; i < n_points; i++)
         // Iterate through pointcloud
         /*for (sensor_msgs::PointCloud2ConstIterator<float>
@@ -328,6 +334,8 @@ namespace pointcloud_to_laserscan
 
         reduced_pcl_cloud->points.push_back(pcl_cloud->points[i]);
     }
+    ros::Time end_selection_time = ros::Time::now();
+    NODELET_ERROR_STREAM("dsc time: " << end_selection_time - start_selection_time);
 /*
     if (cloud_msg->header.seq == 1286)
     {
@@ -344,6 +352,7 @@ namespace pointcloud_to_laserscan
     ros::Time start_dsc_time = ros::Time::now();
     outlier_removal_filter(reduced_pcl_cloud, filter_i);
     ros::Time end_dsc_time = ros::Time::now();
+    NODELET_ERROR_STREAM("dsc time: " << end_dsc_time - start_dsc_time);
     //NODELET_ERROR_STREAM("pcl cloud size: " << n_points);
 
     if (cloud_msg->header.seq == 1286)
@@ -388,6 +397,13 @@ namespace pointcloud_to_laserscan
 
     }
 
+
+    // Uncomment to print time measurements
+    /*
+    ros::Time end_time = ros::Time::now();
+    NODELET_ERROR_STREAM("processing time complete: " << end_time - start_time);
+    NODELET_ERROR_STREAM("processing time loop: " << end_time - start_loop_time);
+    */
     pub_.publish(output);
   }
 
