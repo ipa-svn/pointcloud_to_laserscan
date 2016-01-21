@@ -56,6 +56,13 @@
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/filters/voxel_grid.h>
 
+#include <pcl/visualization/image_viewer.h>
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/visualization/range_image_visualizer.h>
+
+#include <cv.h>
+#include <highgui.h>
+
 
 namespace pointcloud_to_laserscan
 {
@@ -252,6 +259,12 @@ namespace pointcloud_to_laserscan
     std::vector<int> indices;
     pcl::removeNaNFromPointCloud(*pcl_cloud,*pcl_cloud, indices);
     indices.clear();
+
+    //pcl::visualization::PCLVisualizer pclv;
+
+    //pcl::visualization::ImageViewer iv;
+    //pclv.addPointCloud(pcl_cloud, "unfiltered");
+    //pclv.spin();
     int n_points = pcl_cloud->size();
     for(int i = 0; i < n_points; i++)
         // Iterate through pointcloud
@@ -315,6 +328,16 @@ namespace pointcloud_to_laserscan
 
         reduced_pcl_cloud->points.push_back(pcl_cloud->points[i]);
     }
+/*
+    if (cloud_msg->header.seq == 1286)
+    {
+        pcl::visualization::PCLVisualizer pclv;
+
+        //pcl::visualization::ImageViewer iv;
+        pclv.addPointCloud(reduced_pcl_cloud, "unfiltered");
+        pclv.spin();
+    }
+*/
     //n_points = pcl_cloud->size();
     //NODELET_ERROR_STREAM("pcl cloud size: " << n_points);
     // Filter pointcloud TODO limit even more, still takes too long use indecis instead?
@@ -322,6 +345,16 @@ namespace pointcloud_to_laserscan
     outlier_removal_filter(reduced_pcl_cloud, filter_i);
     ros::Time end_dsc_time = ros::Time::now();
     //NODELET_ERROR_STREAM("pcl cloud size: " << n_points);
+
+    if (cloud_msg->header.seq == 1286)
+    {
+        pcl::visualization::PCLVisualizer pclv;
+
+        //pcl::visualization::ImageViewer iv;
+        pclv.addPointCloud(reduced_pcl_cloud, "unfiltered");
+        pclv.spin();
+    }
+
     // project pointcloud to scan
     n_points = reduced_pcl_cloud->size();
     for (int j = 0; j < n_points; j++)
