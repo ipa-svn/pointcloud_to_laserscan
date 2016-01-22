@@ -36,13 +36,14 @@
 
 /*
  * Author: Paul Bovbel
+ * Author: Sofie Nilsson
  */
 
 #include <ros/ros.h>
 #include <nodelet/loader.h>
 
 int main(int argc, char **argv){
-  ros::init(argc, argv, "pointcloud_to_laserscan_node");
+  ros::init(argc, argv, "ipa_pointcloud_to_laserscan_node");
   ros::NodeHandle private_nh("~");
   int concurrency_level;
   private_nh.param<int>("concurrency_level", concurrency_level, 0);
