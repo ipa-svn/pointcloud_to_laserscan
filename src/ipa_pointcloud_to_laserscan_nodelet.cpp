@@ -40,7 +40,7 @@
  * Author: Sofie Nilsson
  */
 
-#include <pointcloud_to_laserscan/pointcloud_to_laserscan_nodelet.h>
+#include <pointcloud_to_laserscan/ipa_pointcloud_to_laserscan_nodelet.h>
 #include <sensor_msgs/LaserScan.h>
 #include <pluginlib/class_list_macros.h>
 #include <sensor_msgs/point_cloud2_iterator.h>
@@ -53,9 +53,9 @@ namespace pointcloud_to_laserscan
 {
   void scan_outlier_removal_filter(sensor_msgs::LaserScan &scan, double cluster_break_distance, int max_noise_cluster_size);
 
-  PointCloudToLaserScanNodelet::PointCloudToLaserScanNodelet() {}
+  IpaPointCloudToLaserScanNodelet::IpaPointCloudToLaserScanNodelet() {}
 
-  void PointCloudToLaserScanNodelet::onInit()
+  void IpaPointCloudToLaserScanNodelet::onInit()
   {
     boost::mutex::scoped_lock lock(connect_mutex_);
     private_nh_ = getPrivateNodeHandle();
@@ -102,20 +102,20 @@ namespace pointcloud_to_laserscan
       tf2_.reset(new tf2_ros::Buffer());
       tf2_listener_.reset(new tf2_ros::TransformListener(*tf2_));
       message_filter_.reset(new MessageFilter(sub_, *tf2_, target_frame_, input_queue_size_, nh_));
-      message_filter_->registerCallback(boost::bind(&PointCloudToLaserScanNodelet::cloudCb, this, _1));
-      message_filter_->registerFailureCallback(boost::bind(&PointCloudToLaserScanNodelet::failureCb, this, _1, _2));
+      message_filter_->registerCallback(boost::bind(&IpaPointCloudToLaserScanNodelet::cloudCb, this, _1));
+      message_filter_->registerFailureCallback(boost::bind(&IpaPointCloudToLaserScanNodelet::failureCb, this, _1, _2));
     }
     else // otherwise setup direct subscription
     {
-      sub_.registerCallback(boost::bind(&PointCloudToLaserScanNodelet::cloudCb, this, _1));
+      sub_.registerCallback(boost::bind(&IpaPointCloudToLaserScanNodelet::cloudCb, this, _1));
     }
 
     pub_ = nh_.advertise<sensor_msgs::LaserScan>("scan", 10,
-                                                 boost::bind(&PointCloudToLaserScanNodelet::connectCb, this),
-                                                 boost::bind(&PointCloudToLaserScanNodelet::disconnectCb, this));
+                                                 boost::bind(&IpaPointCloudToLaserScanNodelet::connectCb, this),
+                                                 boost::bind(&IpaPointCloudToLaserScanNodelet::disconnectCb, this));
   }
 
-  void PointCloudToLaserScanNodelet::connectCb()
+  void IpaPointCloudToLaserScanNodelet::connectCb()
   {
     boost::mutex::scoped_lock lock(connect_mutex_);
     if (pub_.getNumSubscribers() > 0 && sub_.getSubscriber().getNumPublishers() == 0)
@@ -125,7 +125,7 @@ namespace pointcloud_to_laserscan
     }
   }
 
-  void PointCloudToLaserScanNodelet::disconnectCb()
+  void IpaPointCloudToLaserScanNodelet::disconnectCb()
   {
     boost::mutex::scoped_lock lock(connect_mutex_);
     if (pub_.getNumSubscribers() == 0)
@@ -135,20 +135,20 @@ namespace pointcloud_to_laserscan
     }
   }
 
-  void PointCloudToLaserScanNodelet::failureCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg,
+  void IpaPointCloudToLaserScanNodelet::failureCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg,
                                                tf2_ros::filter_failure_reasons::FilterFailureReason reason)
   {
     NODELET_WARN_STREAM_THROTTLE(1.0, "Can't transform pointcloud from frame " << cloud_msg->header.frame_id << " to "
         << message_filter_->getTargetFramesString());
   }
 
-  void PointCloudToLaserScanNodelet::cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
+  void IpaPointCloudToLaserScanNodelet::cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
   {
     // Get filter related parameters
     bool use_outlier_filter;
     double cluster_break_distance;
     int max_noise_cluster_size;
-    private_nh_.param<bool>("use_outlier_filter", use_outlier_filter, true);
+    private_nh_.param<bool>("use_outlier_filter", use_outlier_filter, false);
     private_nh_.param<double>("cluster_break_distance", cluster_break_distance, 0.3);
     private_nh_.param<int>("max_noise_cluster_size", max_noise_cluster_size, 5);
 
@@ -383,4 +383,4 @@ namespace pointcloud_to_laserscan
   }
 }
 
-PLUGINLIB_DECLARE_CLASS(pointcloud_to_laserscan, PointCloudToLaserScanNodelet, pointcloud_to_laserscan::PointCloudToLaserScanNodelet, nodelet::Nodelet);
+PLUGINLIB_DECLARE_CLASS(ipa_pointcloud_to_laserscan, IpaPointCloudToLaserScanNodelet, pointcloud_to_laserscan::IpaPointCloudToLaserScanNodelet, nodelet::Nodelet);
