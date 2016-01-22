@@ -13,7 +13,7 @@
     <node pkg="nodelet" type="nodelet" name="pc_left_converter_nodelet_manager"  args="manager"/>
 
     <!-- push pointcloud_to_laserscan nodelet into sensor's nodelet manager-->
-    <node pkg="nodelet" type="nodelet" name="pointcloud_to_laserscan" args="load pointcloud_to_laserscan/pointcloud_to_laserscan_nodelet pc_left_converter_nodelet_manager">
+    <node pkg="nodelet" type="nodelet" name="ipa_pointcloud_to_laserscan" args="load pointcloud_to_laserscan/ipa_pointcloud_to_laserscan_nodelet pc_left_converter_nodelet_manager">
 
         <remap from="cloud_in" to="$(arg camera)/depth_registered/points"/>
         <remap from="scan" to="$(arg camera)/scan"/>
@@ -30,6 +30,10 @@
             range_min: 0.25
             range_max: 10.0
             use_inf: true
+
+            use_outlier_filter: true
+            cluster_break_distance: 0.3
+            max_noise_cluster_size: 5
 
             # Concurrency level, affects number of pointclouds queued for processing and number of threads used
             # 0 : Detect number of cores

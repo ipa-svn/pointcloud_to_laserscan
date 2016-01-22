@@ -2,13 +2,15 @@
 
 <launch>
 
-    <arg name="camera" default="torso_cam3d_left" />
+    <arg name="camera1" default="torso_cam3d_left" />
+    <arg name="camera2" default="torso_cam3d_right" />
+
 
     <!-- run pointcloud_to_laserscan node -->
-    <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan_l">
+    <node pkg="pointcloud_to_laserscan" type="ipa_pointcloud_to_laserscan_node" name="pointcloud_to_laserscan_l">
 
-        <remap from="cloud_in" to="$(arg camera)/depth_registered/points"/>
-        <remap from="scan" to="$(arg camera)/scan"/>
+        <remap from="cloud_in" to="$(arg camera1)/depth_registered/points"/>
+        <remap from="scan" to="$(arg camera1)/scan"/>
         <rosparam>
             target_frame: base_link # torso_3_link # Leave disabled to output scan in pointcloud frame
             transform_tolerance: 0.05
@@ -23,6 +25,10 @@
             range_max: 10.0
             use_inf: true
 
+            use_outlier_filter: true
+            cluster_break_distance: 0.3
+            max_noise_cluster_size: 5
+
             # Concurrency level, affects number of pointclouds queued for processing and number of threads used
             # 0 : Detect number of cores
             # 1 : Single threaded
@@ -33,10 +39,10 @@
     </node>
 
     <!-- run pointcloud_to_laserscan node -->
-    <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan_r">
+    <node pkg="pointcloud_to_laserscan" type="ipa_pointcloud_to_laserscan_node" name="pointcloud_to_laserscan_r">
 
-        <remap from="cloud_in" to="torso_cam3d_right/depth_registered/points"/>
-        <remap from="scan" to="torso_cam3d_right/scan"/>
+        <remap from="cloud_in" to="$(arg camera2)/depth_registered/points"/>
+        <remap from="scan" to="$(arg camera2)/scan"/>
         <rosparam>
             target_frame: base_link # torso_3_link # Leave disabled to output scan in pointcloud frame
             transform_tolerance: 0.05
@@ -50,6 +56,10 @@
             range_min: 0.25
             range_max: 10.0
             use_inf: true
+
+            use_outlier_filter: true
+            cluster_break_distance: 0.3
+            max_noise_cluster_size: 5
 
             # Concurrency level, affects number of pointclouds queued for processing and number of threads used
             # 0 : Detect number of cores
