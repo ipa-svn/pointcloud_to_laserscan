@@ -51,7 +51,7 @@
 
 namespace pointcloud_to_laserscan
 {
-  void scan_outlier_removal_filter(sensor_msgs::LaserScan &scan, double cluster_break_distance, int max_noise_cluster_size);
+  void scan_outlier_removal_filter(sensor_msgs::LaserScan &scan, double cluster_break_distance, int max_noise_cluster_size, double max_noise_cluster_distance);
 
   IpaPointCloudToLaserScanNodelet::IpaPointCloudToLaserScanNodelet() {}
 
@@ -146,9 +146,11 @@ namespace pointcloud_to_laserscan
   {
     // Get filter related parameters
     bool use_outlier_filter;
+    double max_noise_cluster_distance;
     double cluster_break_distance;
     int max_noise_cluster_size;
     private_nh_.param<bool>("use_outlier_filter", use_outlier_filter, false);
+    private_nh_.param<double>("max_noise_cluster_distance", max_noise_cluster_distance, 2.0);
     private_nh_.param<double>("cluster_break_distance", cluster_break_distance, 0.3);
     private_nh_.param<int>("max_noise_cluster_size", max_noise_cluster_size, 5);
 
@@ -307,7 +309,7 @@ namespace pointcloud_to_laserscan
 
     if(use_outlier_filter)
     {
-        scan_outlier_removal_filter(output, cluster_break_distance, max_noise_cluster_size);
+        scan_outlier_removal_filter(output, cluster_break_distance, max_noise_cluster_size, max_noise_cluster_distance);
     }
 
     pub_.publish(output);
@@ -326,7 +328,7 @@ namespace pointcloud_to_laserscan
    * @param cluster_break_distance The range jump to cause a cluster separation
    * @param max_noise_cluster_size The maximum number of points a cluster can contain in order to be seen as noise and thereby removed
    */
-  void scan_outlier_removal_filter(sensor_msgs::LaserScan &scan, double cluster_break_distance, int max_noise_cluster_size)
+  void scan_outlier_removal_filter(sensor_msgs::LaserScan &scan, double cluster_break_distance, int max_noise_cluster_size, double max_noise_cluster_distance)
   {
       // help function initialization
       int ranges_size = scan.ranges.size();
@@ -356,9 +358,25 @@ namespace pointcloud_to_laserscan
               // Only remove cluster if it is closer than surrounding clusters
               if ((i_current_cluster < max_noise_cluster_size) && (new_cluster_further_away != cluster_further_away))
               {
+                  // check if all cluster points are closer than the max noise distance
+                  bool is_noise_cluster = true;
                   for (int k = 0; k < i_current_cluster; k++)
                   {
-                      scan.ranges[cluster_indecies[k]] = scan.range_max;
+                      if (scan.ranges[cluster_indecies[k]] > max_noise_cluster_distance)
+                      {
+                          is_noise_cluster = false;
+                          break;
+                      }
+                  }
+
+                  // Only remove cluster points if all points are closer than the max noise distance
+                  if(is_noise_cluster)
+                  {
+                      for (int k = 0; k < i_current_cluster; k++)
+                      {
+                          if (scan.ranges[cluster_indecies[k]] < max_noise_cluster_distance)
+                              scan.ranges[cluster_indecies[k]] = scan.range_max;
+                      }
                   }
               }
 

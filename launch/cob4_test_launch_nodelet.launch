@@ -32,8 +32,9 @@
             use_inf: true
 
             use_outlier_filter: true
+            max_noise_cluster_distance: 2.5
             cluster_break_distance: 0.3
-            max_noise_cluster_size: 5
+            max_noise_cluster_size: 10
 
             # Concurrency level, affects number of pointclouds queued for processing and number of threads used
             # 0 : Detect number of cores
