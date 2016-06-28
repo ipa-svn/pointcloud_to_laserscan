@@ -144,6 +144,9 @@ namespace pointcloud_to_laserscan
 
   void IpaPointCloudToLaserScanNodelet::cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
   {
+    ros::Time start_time = ros::Time::now();
+    NODELET_INFO_STREAM("PC with timestamp " << cloud_msg->header.stamp << " recevied at time " << start_time);
+    // TODO move to config and add dynamic reconfiguring
     // Get filter related parameters
     bool use_outlier_filter;
     double max_noise_cluster_distance;
@@ -173,7 +176,7 @@ namespace pointcloud_to_laserscan
     {
       try
       {
-            geometry_msgs::TransformStamped T_geom = tf2_->lookupTransform(cloud_msg->header.frame_id, target_frame_, ros::Time(0));
+            geometry_msgs::TransformStamped T_geom = tf2_->lookupTransform(cloud_msg->header.frame_id, target_frame_, cloud_msg->header.stamp);
             // Convert geometry msgs transform to tf2 transform.
             tf2::fromMsg(T_geom.transform, T);
       }
@@ -311,6 +314,9 @@ namespace pointcloud_to_laserscan
     {
         scan_outlier_removal_filter(output, cluster_break_distance, max_noise_cluster_size, max_noise_cluster_distance);
     }
+
+    ros::Time end_time = ros::Time::now();
+    NODELET_INFO_STREAM("Transform for PC took " << end_time - start_time);
 
     pub_.publish(output);
   }
