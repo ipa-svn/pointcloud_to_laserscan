@@ -51,7 +51,7 @@
 
 namespace pointcloud_to_laserscan
 {
-  void scan_outlier_removal_filter(sensor_msgs::LaserScan &scan, double cluster_break_distance, int max_noise_cluster_size, double max_noise_cluster_distance);
+  //void scan_outlier_removal_filter(sensor_msgs::LaserScan &scan, double cluster_break_distance, int max_noise_cluster_size, double max_noise_cluster_distance);
 
   IpaPointCloudToLaserScanNodelet::IpaPointCloudToLaserScanNodelet() {}
 
@@ -75,6 +75,8 @@ namespace pointcloud_to_laserscan
     int concurrency_level;
     private_nh_.param<int>("concurrency_level", concurrency_level, 1);
     private_nh_.param<bool>("use_inf", use_inf_, true);
+
+    configure_filter();
 
     //Check if explicitly single threaded, otherwise, let nodelet manager dictate thread pool size
     if (concurrency_level == 1)
@@ -115,6 +117,23 @@ namespace pointcloud_to_laserscan
                                                  boost::bind(&IpaPointCloudToLaserScanNodelet::disconnectCb, this));
   }
 
+  void IpaPointCloudToLaserScanNodelet::configure_filter()
+  {
+    NODELET_DEBUG_STREAM("configuring filter");
+    // Get filter related parameters
+    
+    private_nh_.param<bool>("use_outlier_filter", use_outlier_filter_, false);
+
+    double max_noise_cluster_distance;
+    double cluster_break_distance;
+    int max_noise_cluster_size;
+    private_nh_.param<double>("max_noise_cluster_distance", max_noise_cluster_distance, 2.0);
+    private_nh_.param<double>("cluster_break_distance", cluster_break_distance, 0.3);
+    private_nh_.param<int>("max_noise_cluster_size", max_noise_cluster_size, 5);
+
+    outlier_filter_.configure(cluster_break_distance, max_noise_cluster_size, max_noise_cluster_distance);
+  }
+
   void IpaPointCloudToLaserScanNodelet::connectCb()
   {
     boost::mutex::scoped_lock lock(connect_mutex_);
@@ -148,6 +167,7 @@ namespace pointcloud_to_laserscan
     NODELET_INFO_STREAM("PC with timestamp " << cloud_msg->header.stamp << " recevied at time " << start_time);
     // TODO move to config and add dynamic reconfiguring
     // Get filter related parameters
+    /*
     bool use_outlier_filter;
     double max_noise_cluster_distance;
     double cluster_break_distance;
@@ -156,6 +176,7 @@ namespace pointcloud_to_laserscan
     private_nh_.param<double>("max_noise_cluster_distance", max_noise_cluster_distance, 2.0);
     private_nh_.param<double>("cluster_break_distance", cluster_break_distance, 0.3);
     private_nh_.param<int>("max_noise_cluster_size", max_noise_cluster_size, 5);
+    */
 
     // convert const ptr to ptr to support downsampling
     sensor_msgs::PointCloud2Ptr cloud(boost::const_pointer_cast<sensor_msgs::PointCloud2>(cloud_msg));
@@ -310,9 +331,10 @@ namespace pointcloud_to_laserscan
 
     }
 
-    if(use_outlier_filter)
+    if(use_outlier_filter_)
     {
-        scan_outlier_removal_filter(output, cluster_break_distance, max_noise_cluster_size, max_noise_cluster_distance);
+        //scan_outlier_removal_filter(output, cluster_break_distance, max_noise_cluster_size, max_noise_cluster_distance);
+      outlier_filter_.remove_outliers(output);
     }
 
     ros::Time end_time = ros::Time::now();

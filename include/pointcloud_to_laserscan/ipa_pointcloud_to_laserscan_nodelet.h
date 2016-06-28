@@ -51,6 +51,7 @@
 #include "tf2_ros/message_filter.h"
 #include "message_filters/subscriber.h"
 #include "sensor_msgs/PointCloud2.h"
+#include <pointcloud_to_laserscan/scan_outlier_removal_filter.h>
 
 
 namespace pointcloud_to_laserscan
@@ -65,6 +66,7 @@ namespace pointcloud_to_laserscan
 
   public:
     IpaPointCloudToLaserScanNodelet();
+    void configure_filter();
 
   private:
     virtual void onInit();
@@ -86,12 +88,14 @@ namespace pointcloud_to_laserscan
     message_filters::Subscriber<sensor_msgs::PointCloud2> sub_;
     boost::shared_ptr<MessageFilter> message_filter_;
 
+    scan_outlier_filter::ScanOutlierRemovalFilter outlier_filter_;
     // ROS Parameters
     unsigned int input_queue_size_;
     std::string target_frame_;
     double tolerance_;
     double min_height_, max_height_, angle_min_, angle_max_, angle_increment_, scan_time_, range_min_, range_max_;
     bool use_inf_;
+    bool use_outlier_filter_;
   };
 
 }  // pointcloud_to_laserscan
