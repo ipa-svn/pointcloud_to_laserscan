@@ -51,8 +51,6 @@
 
 namespace pointcloud_to_laserscan
 {
-  //void scan_outlier_removal_filter(sensor_msgs::LaserScan &scan, double cluster_break_distance, int max_noise_cluster_size, double max_noise_cluster_distance);
-
   IpaPointCloudToLaserScanNodelet::IpaPointCloudToLaserScanNodelet() {}
 
   void IpaPointCloudToLaserScanNodelet::onInit()
@@ -159,25 +157,24 @@ namespace pointcloud_to_laserscan
   {
     NODELET_WARN_STREAM_THROTTLE(1.0, "Can't transform pointcloud from frame " << cloud_msg->header.frame_id << " to "
         << message_filter_->getTargetFramesString());
+
+    try
+    {
+      geometry_msgs::TransformStamped T_geom = tf2_->lookupTransform(cloud_msg->header.frame_id, target_frame_, cloud_msg->header.stamp, ros::Duration(0.1));
+      NODELET_INFO_STREAM("Transform worked at retry ");
+    }
+    catch (tf2::TransformException ex)
+    {
+      NODELET_WARN_STREAM("Transform failure again after retry in failureCB, exception: " << ex.what());
+      return;
+    }
   }
 
   void IpaPointCloudToLaserScanNodelet::cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
   {
     ros::Time start_time = ros::Time::now();
-    NODELET_INFO_STREAM("PC with timestamp " << cloud_msg->header.stamp << " recevied at time " << start_time);
-    // TODO move to config and add dynamic reconfiguring
-    // Get filter related parameters
-    /*
-    bool use_outlier_filter;
-    double max_noise_cluster_distance;
-    double cluster_break_distance;
-    int max_noise_cluster_size;
-    private_nh_.param<bool>("use_outlier_filter", use_outlier_filter, false);
-    private_nh_.param<double>("max_noise_cluster_distance", max_noise_cluster_distance, 2.0);
-    private_nh_.param<double>("cluster_break_distance", cluster_break_distance, 0.3);
-    private_nh_.param<int>("max_noise_cluster_size", max_noise_cluster_size, 5);
-    */
-
+    NODELET_INFO_STREAM("PC with timestamp from init " << cloud_msg->header.stamp.toSec() << " recevied with a delay of " << (start_time - cloud_msg->header.stamp).toSec() << " ");
+    
     // convert const ptr to ptr to support downsampling
     sensor_msgs::PointCloud2Ptr cloud(boost::const_pointer_cast<sensor_msgs::PointCloud2>(cloud_msg));
 
@@ -197,9 +194,9 @@ namespace pointcloud_to_laserscan
     {
       try
       {
-            geometry_msgs::TransformStamped T_geom = tf2_->lookupTransform(cloud_msg->header.frame_id, target_frame_, cloud_msg->header.stamp);
-            // Convert geometry msgs transform to tf2 transform.
-            tf2::fromMsg(T_geom.transform, T);
+        geometry_msgs::TransformStamped T_geom = tf2_->lookupTransform(cloud_msg->header.frame_id, target_frame_, cloud_msg->header.stamp, ros::Duration(0.1));
+        // Convert geometry msgs transform to tf2 transform.
+        tf2::fromMsg(T_geom.transform, T);
       }
       catch (tf2::TransformException ex)
       {
@@ -333,99 +330,14 @@ namespace pointcloud_to_laserscan
 
     if(use_outlier_filter_)
     {
-        //scan_outlier_removal_filter(output, cluster_break_distance, max_noise_cluster_size, max_noise_cluster_distance);
       outlier_filter_.remove_outliers(output);
     }
 
     ros::Time end_time = ros::Time::now();
-    NODELET_INFO_STREAM("Transform for PC took " << end_time - start_time);
+    ros::Duration dur = end_time-start_time;
+    NODELET_INFO_STREAM("Transform for PC took " << dur.toSec());
 
     pub_.publish(output);
-  }
-
-  /**
-   * @brief scan_outlier_removal_filter
-   * Remove clusters that are small enough (specified by parameter max_noise_cluster_size) and
-   * closer to the sensor (has smaller range) than the surrounding clusters.
-   * A cluster is defined as a collection of point with a specified range jump (specified by parameter cluster_break_distance) to neigboring points.
-   * The "closer to the sensor" is determined by the sign of the range jump at the beginning and end of the cluster.
-   *
-   * The implementation assumes ordered scan, meaning that the points are sorted according to the angle.
-   *
-   * @param scan The 2d sensor msgs laser scan
-   * @param cluster_break_distance The range jump to cause a cluster separation
-   * @param max_noise_cluster_size The maximum number of points a cluster can contain in order to be seen as noise and thereby removed
-   */
-  void scan_outlier_removal_filter(sensor_msgs::LaserScan &scan, double cluster_break_distance, int max_noise_cluster_size, double max_noise_cluster_distance)
-  {
-      // help function initialization
-      int ranges_size = scan.ranges.size();
-      int i_current_cluster = 0;
-      bool cluster_further_away = false;
-      std::vector<int> cluster_indecies;
-      double diffs[ranges_size-1];
-
-      // calculate diffs
-      for (int i = 1; i< ranges_size; i++)
-      {
-          diffs[i-1] = scan.ranges[i] - scan.ranges[i-1];
-      }
-
-      // find and remove outliers
-      for (int i = 0; i< ranges_size-1; i++)
-      {
-          // add point to cluster
-          cluster_indecies.push_back(i);
-          i_current_cluster ++;
-
-          // check if last point in cluster; find diff larger than border -> cluster separation
-          if (diffs[i] > cluster_break_distance || diffs[i] < -cluster_break_distance)
-          {
-              bool new_cluster_further_away = (diffs[i] > 0);
-
-              // Only remove cluster if it is closer than surrounding clusters
-              if ((i_current_cluster < max_noise_cluster_size) && (new_cluster_further_away != cluster_further_away))
-              {
-                  // check if all cluster points are closer than the max noise distance
-                  bool is_noise_cluster = true;
-                  for (int k = 0; k < i_current_cluster; k++)
-                  {
-                      if (scan.ranges[cluster_indecies[k]] > max_noise_cluster_distance)
-                      {
-                          is_noise_cluster = false;
-                          break;
-                      }
-                  }
-
-                  // Only remove cluster points if all points are closer than the max noise distance
-                  if(is_noise_cluster)
-                  {
-                      for (int k = 0; k < i_current_cluster; k++)
-                      {
-                          if (scan.ranges[cluster_indecies[k]] < max_noise_cluster_distance)
-                              scan.ranges[cluster_indecies[k]] = scan.range_max;
-                      }
-                  }
-              }
-
-              // initialize new cluster
-              cluster_further_away = new_cluster_further_away;
-              cluster_indecies.clear();
-              i_current_cluster = 0;
-          }
-      }
-
-
-      // remove last cluster if small enough
-      if ((i_current_cluster < cluster_break_distance) && !cluster_further_away)
-      {
-          for (int k = 0; k < i_current_cluster; k++)
-          {
-              scan.ranges[cluster_indecies[k]] = scan.range_max;
-          }
-          // remove last point as well
-          scan.ranges[ranges_size-1] = scan.range_max;
-      }
   }
 }
 
