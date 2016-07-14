@@ -173,7 +173,7 @@ namespace pointcloud_to_laserscan
   void IpaPointCloudToLaserScanNodelet::cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
   {
     ros::Time start_time = ros::Time::now();
-    NODELET_INFO_STREAM("PC with timestamp from init " << cloud_msg->header.stamp.toSec() << " recevied with a delay of " << (start_time - cloud_msg->header.stamp).toSec() << " ");
+    NODELET_DEBUG_STREAM("PC with timestamp from init " << cloud_msg->header.stamp.toSec() << " recevied with a delay of " << (start_time - cloud_msg->header.stamp).toSec() << " ");
     
     // convert const ptr to ptr to support downsampling
     sensor_msgs::PointCloud2Ptr cloud(boost::const_pointer_cast<sensor_msgs::PointCloud2>(cloud_msg));
@@ -335,7 +335,7 @@ namespace pointcloud_to_laserscan
 
     ros::Time end_time = ros::Time::now();
     ros::Duration dur = end_time-start_time;
-    NODELET_INFO_STREAM("Transform for PC took " << dur.toSec());
+    NODELET_DEBUG_STREAM("Transform for PC took " << dur.toSec());
 
     pub_.publish(output);
   }
