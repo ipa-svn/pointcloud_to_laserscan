@@ -3,7 +3,7 @@
 
 using namespace scan_outlier_filter; 
 
-void ScanOutlierRemovalFilter::configure(double cluster_break_distance, int max_noise_cluster_size, double max_noise_cluster_distance)
+void ScanOutlierRemovalFilter::configure(const double cluster_break_distance, const int max_noise_cluster_size, const double max_noise_cluster_distance)
 {
 	filter_configured_ = true;
 	cluster_break_distance_ = cluster_break_distance;
