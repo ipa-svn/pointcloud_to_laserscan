@@ -39,8 +39,8 @@
  * Author: Sofie Nilsson
  */
 
-#ifndef IPA_POINTCLOUD_TO_LASERSCAN_POINTCLOUD_TO_LASERSCAN_NODELET
-#define IPA_POINTCLOUD_TO_LASERSCAN_POINTCLOUD_TO_LASERSCAN_NODELET
+#ifndef CONVERT_POINTCLOUD_TO_LASERSCAN_POINTCLOUD_TO_LASERSCAN_INCL_PCL_FILTERING
+#define CONVERT_POINTCLOUD_TO_LASERSCAN_POINTCLOUD_TO_LASERSCAN_INCL_PCL_FILTERING
 
 #include "ros/ros.h"
 #include "boost/thread/mutex.hpp"
@@ -56,52 +56,10 @@
 
 namespace pointcloud_to_laserscan
 {
-  typedef tf2_ros::MessageFilter<sensor_msgs::PointCloud2> MessageFilter;
-/**
-* Class to process incoming pointclouds into laserscans. Some initial code was pulled from the defunct turtlebot
-* pointcloud_to_laserscan implementation.
-*/
-  class IpaPointCloudToLaserScanNodelet : public nodelet::Nodelet
-  {
+  void convert_pointcloud_to_laserscan_including_pcl_filtering(const sensor_msgs::PointCloud2Ptr &cloud, sensor_msgs::LaserScan &output, double range_min, int mean_k, double std_factor );
+  
+  void pcl_statistical_outlier_removal_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, int mean_k, double std_factor);
 
-  public:
-    IpaPointCloudToLaserScanNodelet();
-    void configure_filter();
+}  
 
-  private:
-    virtual void onInit();
-
-    void cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
-    void failureCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg,
-        tf2_ros::filter_failure_reasons::FilterFailureReason reason);
-
-    void connectCb();
-
-    void disconnectCb();
-
-    ros::NodeHandle nh_, private_nh_;
-    ros::Publisher pub_;
-    boost::mutex connect_mutex_;
-
-    boost::shared_ptr<tf2_ros::Buffer> tf2_;
-    boost::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
-    message_filters::Subscriber<sensor_msgs::PointCloud2> sub_;
-    boost::shared_ptr<MessageFilter> message_filter_;
-
-    scan_outlier_filter::ScanOutlierRemovalFilter outlier_filter_;
-    // ROS Parameters
-    unsigned int input_queue_size_;
-    std::string target_frame_;
-    double tolerance_;
-    double min_height_, max_height_, angle_min_, angle_max_, angle_increment_, scan_time_, range_min_, range_max_;
-    bool use_inf_;
-    bool use_outlier_filter_;
-    
-    bool with_pcl_filtering_;
-    int mean_k_;
-    double std_factor_;
-  };
-
-}  // pointcloud_to_laserscan
-
-#endif  // IPA_POINTCLOUD_TO_LASERSCAN_POINTCLOUD_TO_LASERSCAN_NODELET
+#endif  // CONVERT_POINTCLOUD_TO_LASERSCAN_POINTCLOUD_TO_LASERSCAN_INCL_PCL_FILTERING

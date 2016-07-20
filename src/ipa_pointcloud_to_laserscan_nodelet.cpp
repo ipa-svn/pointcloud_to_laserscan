@@ -41,6 +41,7 @@
  */
 
 #include <pointcloud_to_laserscan/ipa_pointcloud_to_laserscan_nodelet.h>
+#include <pointcloud_to_laserscan/pointcloud_to_laserscan_including_pcl_filtering.h>
 #include <sensor_msgs/LaserScan.h>
 #include <pluginlib/class_list_macros.h>
 #include <sensor_msgs/point_cloud2_iterator.h>
@@ -51,6 +52,7 @@
 
 namespace pointcloud_to_laserscan
 {
+  void convert_pointcloud_to_laserscan(const sensor_msgs::PointCloud2ConstPtr &cloud_msg, sensor_msgs::LaserScan &output, double range_min );
   IpaPointCloudToLaserScanNodelet::IpaPointCloudToLaserScanNodelet() {}
 
   void IpaPointCloudToLaserScanNodelet::onInit()
@@ -73,6 +75,11 @@ namespace pointcloud_to_laserscan
     int concurrency_level;
     private_nh_.param<int>("concurrency_level", concurrency_level, 1);
     private_nh_.param<bool>("use_inf", use_inf_, true);
+    
+    // Settings for pcl statistical outlier filter
+    private_nh_.param<bool>("with_pcl_filtering", with_pcl_filtering_, false);
+    private_nh_.param<int>("mean_k", mean_k_, 10);
+    private_nh_.param<double>("std_factor", std_factor_, 0.3);
 
     configure_filter();
 
@@ -264,6 +271,32 @@ namespace pointcloud_to_laserscan
     {
       output.ranges.assign(ranges_size, output.range_max + 1.0);
     }
+    
+    // convert pointcloud to laserscan with or without filtering
+    if(with_pcl_filtering_)
+    {
+      convert_pointcloud_to_laserscan_including_pcl_filtering(cloud_msg, output, range_min_, mean_k_, std_factor_);
+    }
+    else
+    {
+      convert_pointcloud_to_laserscan(cloud_msg, output, range_min_, mean_k_, std_factor_);
+    }
+    
+    if(use_outlier_filter_)
+    {
+      outlier_filter_.remove_outliers(output);
+    }
+
+    ros::Time end_time = ros::Time::now();
+    ros::Duration dur = end_time-start_time;
+    NODELET_DEBUG_STREAM("Transform for PC took " << dur.toSec());
+
+    pub_.publish(output);
+  }
+    
+    
+  void convert_pointcloud_to_laserscan(const sensor_msgs::PointCloud2Ptr &cloud, sensor_msgs::LaserScan &output, double range_min )
+  {
 
     // Iterate through pointcloud
     for (sensor_msgs::PointCloud2Iterator<float>
@@ -328,16 +361,6 @@ namespace pointcloud_to_laserscan
 
     }
 
-    if(use_outlier_filter_)
-    {
-      outlier_filter_.remove_outliers(output);
-    }
-
-    ros::Time end_time = ros::Time::now();
-    ros::Duration dur = end_time-start_time;
-    NODELET_DEBUG_STREAM("Transform for PC took " << dur.toSec());
-
-    pub_.publish(output);
   }
 }
 
