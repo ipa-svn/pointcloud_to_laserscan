@@ -61,7 +61,7 @@ namespace scan_outlier_filter
 			max_noise_cluster_size_(0), 
 			max_noise_cluster_distance_(0.0)
 			{};
-		void configure(double cluster_break_distance, int max_noise_cluster_size, double max_noise_cluster_distance);
+		void configure(const double cluster_break_distance, const int max_noise_cluster_size, const double max_noise_cluster_distance);
 
 		void remove_outliers(sensor_msgs::LaserScan &scan);
 	};

@@ -10,12 +10,13 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   tf2_sensor_msgs
   tf2_geometry_msgs
+  pcl_ros
 )
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES pointcloud_to_laserscan ipa_pointcloud_to_laserscan
-  CATKIN_DEPENDS roscpp message_filters nodelet sensor_msgs tf2 tf2_ros tf2_sensor_msgs tf2_geometry_msgs
+  CATKIN_DEPENDS roscpp message_filters nodelet sensor_msgs tf2 tf2_ros tf2_sensor_msgs tf2_geometry_msgs pcl_ros
 )
 
 include_directories(

@@ -13,8 +13,8 @@ min_height: 0.15
 max_height: 1.5
 
 # angle [radians] borders in x-y-plane of target frame
-angle_min: -0.7
-angle_max: 0.5708
+angle_min: -0.78
+angle_max: -0.03
 angle_increment: 0.008
 
 # range [meters] borders to the z axis of the target frame
