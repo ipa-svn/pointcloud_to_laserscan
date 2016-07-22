@@ -301,7 +301,7 @@ NODELET_WARN_STREAM("cb test ");
   void IpaPointCloudToLaserScanNodelet::convert_pointcloud_to_laserscan(const sensor_msgs::PointCloud2Ptr &cloud, sensor_msgs::LaserScan &output, 
 	const tf2::Transform &T, const double range_min )
   {
-	NODELET_INFO_STREAM("cb without pcl ");
+    NODELET_DEBUG_STREAM("cb without pcl ");
     // Transform borders and target plane to original coordinates (saved resources to not have to transform the whole point cloud)
     // A plane is described by all points fulfilling p= A + l1*e1 + l2*e2.
     // Transformation to other coordinate frame with transformation T gives: p'= T(A) + l1*T(e1) + l2*T(e2)
@@ -396,7 +396,7 @@ NODELET_WARN_STREAM("cb test ");
   void IpaPointCloudToLaserScanNodelet::convert_pointcloud_to_laserscan_including_pcl_filtering(const sensor_msgs::PointCloud2Ptr cloud, 
 	sensor_msgs::LaserScan &output, const tf2::Transform &T, const double range_min, const int mean_k, const double std_factor )
   {
-	NODELET_INFO_STREAM("cb with pcl k= " << mean_k << " factor= " << std_factor);
+    NODELET_DEBUG_STREAM("cb with pcl k= " << mean_k << " factor= " << std_factor);
     // Transform borders and target plane to original coordinates (saved resources to not have to transform the whole point cloud)
     // A plane is described by all points fulfilling p= A + l1*e1 + l2*e2.
     // Transformation to other coordinate frame with transformation T gives: p'= T(A) + l1*T(e1) + l2*T(e2)
@@ -406,7 +406,7 @@ NODELET_WARN_STREAM("cb test ");
     tf2::Vector3 A_max_o_frame = T(A_max_t_frame);
     NODELET_DEBUG_STREAM("A max: " << A_max_o_frame.getX() <<", "<< A_max_o_frame.getY() <<", "<< A_max_o_frame.getZ());
 
-    tf2::Vector3 A_min_t_frame(0, 0, min_height_);
+    tf2::Vector3 A_min_t_frame(0, 0, 0.0);//min_height_); // Uggly hack to use filter on partly reduced pointcloud still seeing the floor
     tf2::Vector3 A_min_o_frame = T(A_min_t_frame); // want to get the orientation vector in the new coordinates
     NODELET_DEBUG_STREAM("A min: " << A_min_o_frame.getX() <<", "<< A_min_o_frame.getY() <<", "<< A_min_o_frame.getZ());
 
@@ -497,6 +497,10 @@ NODELET_WARN_STREAM("cb test ");
     
     // filter reduced cloud
     pcl_statistical_outlier_removal_filter(reduced_pcl_cloud, mean_k, std_factor);
+
+    tf2::Vector3 A_min_t_frame2(0, 0, min_height_);
+    tf2::Vector3 A_min_o_frame2 = T(A_min_t_frame2); // want to get the orientation vector in the new coordinates
+    NODELET_DEBUG_STREAM("A min: " << A_min_o_frame2.getX() <<", "<< A_min_o_frame.getY() <<", "<< A_min_o_frame.getZ());
     
     // project pointcloud to scan
     n_points = reduced_pcl_cloud->size();
@@ -516,10 +520,29 @@ NODELET_WARN_STREAM("cb test ");
          *
          * For now we assume tahat a common set of lambdas hold:
          */
+	// need to check height again do to the uggly hack above. Otherwise the previous loop would use the correct settings right away
         double lambda_x =  (P - A_target_o_frame).dot(ex_o_frame);
         double lambda_y =  (P - A_target_o_frame).dot(ey_o_frame);
+	tf2::Vector3 P_max = A_max_o_frame + lambda_x*ex_o_frame + lambda_y*ey_o_frame;
+        tf2::Vector3 P_min = A_min_o_frame2 + lambda_x*ex_o_frame + lambda_y*ey_o_frame;
+	double border_distance_sqared = P_max.distance2(P_min);
 
-	double range = hypot(lambda_x, lambda_y);
+	if ((P.distance2(P_max) > border_distance_sqared) || (P.distance2(P_min) > border_distance_sqared)) // Originaly: (*iter_z > max_height_ || *iter_z < min_height_)
+        {
+            NODELET_DEBUG("rejected for height %f not in range (%f, %f)\n", *iter_z, min_height_, max_height_);
+            continue;
+        }
+
+        double range = hypot(lambda_x, lambda_y);
+
+
+        if (range < range_min)
+        {
+            NODELET_DEBUG("rejected for range %f below minimum value %f. Point: (%f, %f, %f)", range, range_min_, *iter_x, *iter_y,
+             *iter_z);
+            continue;
+        }
+
 	double angle = atan2(lambda_y, lambda_x);
         //overwrite range at laserscan ray if new range is smaller
         int index = (angle - output.angle_min) / output.angle_increment;
