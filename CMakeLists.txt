@@ -6,6 +6,7 @@ find_package(catkin REQUIRED COMPONENTS
   nodelet
   roscpp
   sensor_msgs
+  tf
   tf2
   tf2_ros
   tf2_sensor_msgs
@@ -23,6 +24,12 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
 )
+
+add_library(frame_publisher src/frame_publisher.cpp)
+target_link_libraries(frame_publisher ${catkin_LIBRARIES})
+
+add_executable(frame_publisher_node src/frame_publisher_node.cpp)
+target_link_libraries(frame_publisher_node frame_publisher ${catkin_LIBRARIES})
 
 add_library(pointcloud_to_laserscan src/pointcloud_to_laserscan_nodelet.cpp)
 target_link_libraries(pointcloud_to_laserscan ${catkin_LIBRARIES})
