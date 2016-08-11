@@ -56,10 +56,10 @@
 #include <pointcloud_to_laserscan/scan_outlier_removal_filter.h>
 
 // includes for pcl filtering
-#include <pcl_ros/point_cloud.h>
-#include <pcl_ros/io/pcd_io.h>
-#include <pcl/io/io.h>
-#include <pcl/point_types.h>
+//#include <pcl_ros/point_cloud.h>
+//#include <pcl_ros/io/pcd_io.h>
+//#include <pcl/io/io.h>
+//#include <pcl/point_types.h>
 
 namespace pointcloud_to_laserscan
 {
@@ -87,10 +87,10 @@ namespace pointcloud_to_laserscan
     void disconnectCb();
 
     void convert_pointcloud_to_laserscan(const sensor_msgs::PointCloud2Ptr &cloud, sensor_msgs::LaserScan &output, const tf2::Transform &T, const double range_min );
-    void convert_pointcloud_to_laserscan_including_pcl_filtering(const sensor_msgs::PointCloud2Ptr cloud, 
-	sensor_msgs::LaserScan &output, const tf2::Transform &T, const double range_min, const int mean_k, const double std_factor );
+    //void convert_pointcloud_to_laserscan_including_pcl_filtering(const sensor_msgs::PointCloud2Ptr cloud, 
+	//sensor_msgs::LaserScan &output, const tf2::Transform &T, const double range_min, const int mean_k, const double std_factor );
   
-    void pcl_statistical_outlier_removal_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, const int mean_k, const double std_factor);
+    //void pcl_statistical_outlier_removal_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, const int mean_k, const double std_factor);
 
     ros::NodeHandle nh_, private_nh_;
     ros::Publisher pub_;
@@ -110,9 +110,9 @@ namespace pointcloud_to_laserscan
     bool use_inf_;
     bool use_outlier_filter_;
     
-    bool with_pcl_filtering_;
-    int mean_k_;
-    double std_factor_;
+    //bool with_pcl_filtering_;
+    //int mean_k_;
+    //double std_factor_;
   };
 
 }  // pointcloud_to_laserscan

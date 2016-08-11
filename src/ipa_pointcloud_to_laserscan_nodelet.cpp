@@ -46,8 +46,8 @@
 #include <sensor_msgs/point_cloud2_iterator.h>
 
 // includes for pcl filtering
-#include <pcl/filters/statistical_outlier_removal.h>
-#include <pcl/range_image/range_image.h>
+//#include <pcl/filters/statistical_outlier_removal.h>
+//#include <pcl/range_image/range_image.h>
 
 #include <iostream>
 
@@ -77,9 +77,9 @@ using namespace pointcloud_to_laserscan;
     private_nh_.param<bool>("use_inf", use_inf_, true);
     
     // Settings for pcl statistical outlier filter
-    private_nh_.param<bool>("with_pcl_filtering", with_pcl_filtering_, false);
-    private_nh_.param<int>("mean_k", mean_k_, 10);
-    private_nh_.param<double>("std_factor", std_factor_, 0.3);
+    //private_nh_.param<bool>("with_pcl_filtering", with_pcl_filtering_, false);
+    //private_nh_.param<int>("mean_k", mean_k_, 10);
+    //private_nh_.param<double>("std_factor", std_factor_, 0.3);
 
     configure_filter();
 
@@ -276,14 +276,14 @@ NODELET_WARN_STREAM("cb test ");
     }
     
     // convert pointcloud to laserscan with or without filtering
-    if(with_pcl_filtering_)
+    /*if(with_pcl_filtering_)
     {
       convert_pointcloud_to_laserscan_including_pcl_filtering(cloud, output, T, range_min_, mean_k_, std_factor_);
     }
     else
-    {
+    {*/
       convert_pointcloud_to_laserscan(cloud, output, T, range_min_);
-    }
+    //}
     
     if(use_outlier_filter_)
     {
@@ -361,7 +361,7 @@ NODELET_WARN_STREAM("cb test ");
 
         if ((P.distance2(P_max) > border_distance_sqared) || (P.distance2(P_min) > border_distance_sqared)) // Originaly: (*iter_z > max_height_ || *iter_z < min_height_)
         {
-            NODELET_DEBUG("rejected for height %f not in range (%f, %f)\n", *iter_z, min_height_, max_height_);
+            //NODELET_DEBUG("rejected for height %f not in range (%f, %f)\n", *iter_z, min_height_, max_height_);
             continue;
         }
 
@@ -370,15 +370,14 @@ NODELET_WARN_STREAM("cb test ");
 
         if (range < range_min_)
         {
-            NODELET_DEBUG("rejected for range %f below minimum value %f. Point: (%f, %f, %f)", range, range_min_, *iter_x, *iter_y,
-             *iter_z);
+            //NODELET_DEBUG("rejected for range %f below minimum value %f. Point: (%f, %f, %f)", range, range_min_, *iter_x, *iter_y, *iter_z);
             continue;
         }
 
         double angle = atan2(lambda_y, lambda_x);
         if (angle < output.angle_min || angle > output.angle_max)
         {
-            NODELET_DEBUG("rejected for angle %f not in range (%f, %f)\n", angle, output.angle_min, output.angle_max);
+            //NODELET_DEBUG("rejected for angle %f not in range (%f, %f)\n", angle, output.angle_min, output.angle_max);
             continue;
         }
 
@@ -393,6 +392,7 @@ NODELET_WARN_STREAM("cb test ");
 
   }
   
+  /*
   void IpaPointCloudToLaserScanNodelet::convert_pointcloud_to_laserscan_including_pcl_filtering(const sensor_msgs::PointCloud2Ptr cloud, 
 	sensor_msgs::LaserScan &output, const tf2::Transform &T, const double range_min, const int mean_k, const double std_factor )
   {
@@ -451,6 +451,7 @@ NODELET_WARN_STREAM("cb test ");
 
         //get reflection point in hight limiting planes in order to check that point lies between borders(above or below is not clearly def):
         tf2::Vector3 P(*iter_x, *iter_y, *iter_z);
+  */
         /**
          * lambda x and y describes the location within the planes, which are the same for all paralell planes with
          * aligned origin -> calculate only once for the plane at height of target frame.
@@ -460,6 +461,7 @@ NODELET_WARN_STREAM("cb test ");
          *
          * For now we assume tahat a common set of lambdas hold:
          */
+    /*
         double lambda_x =  (P - A_target_o_frame).dot(ex_o_frame);
         double lambda_y =  (P - A_target_o_frame).dot(ey_o_frame);
         tf2::Vector3 P_max = A_max_o_frame + lambda_x*ex_o_frame + lambda_y*ey_o_frame;
@@ -511,6 +513,7 @@ NODELET_WARN_STREAM("cb test ");
         float* iter_z = &reduced_pcl_cloud->points[j].z;
 
 	tf2::Vector3 P(*iter_x, *iter_y, *iter_z);
+  */
         /**
          * lambda x and y describes the location within the planes, which are the same for all paralell planes with
          * aligned origin -> calculate only once for the plane at height of target frame.
@@ -520,6 +523,7 @@ NODELET_WARN_STREAM("cb test ");
          *
          * For now we assume tahat a common set of lambdas hold:
          */
+  /*
 	// need to check height again do to the uggly hack above. Otherwise the previous loop would use the correct settings right away
         double lambda_x =  (P - A_target_o_frame).dot(ex_o_frame);
         double lambda_y =  (P - A_target_o_frame).dot(ey_o_frame);
@@ -553,8 +557,9 @@ NODELET_WARN_STREAM("cb test ");
 
     }
   }
+  */
 
-
+/*
   void IpaPointCloudToLaserScanNodelet::pcl_statistical_outlier_removal_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, const int mean_k, const double std_factor)
   {
       // Create the filtering object
@@ -565,6 +570,7 @@ NODELET_WARN_STREAM("cb test ");
       sor.setStddevMulThresh (std_factor);
       sor.filter(*cloud_in);
   }
+  */
 
 
 PLUGINLIB_DECLARE_CLASS(ipa_pointcloud_to_laserscan, IpaPointCloudToLaserScanNodelet, pointcloud_to_laserscan::IpaPointCloudToLaserScanNodelet, nodelet::Nodelet);
