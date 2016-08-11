@@ -179,7 +179,6 @@ using namespace pointcloud_to_laserscan;
 
   void IpaPointCloudToLaserScanNodelet::cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
   {
-NODELET_WARN_STREAM("cb test ");
     ros::Time start_time = ros::Time::now();
     NODELET_DEBUG_STREAM("PC with timestamp from init " << cloud_msg->header.stamp.toSec() << " recevied with a delay of " << (start_time - cloud_msg->header.stamp).toSec() << " ");
     
