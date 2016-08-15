@@ -179,7 +179,6 @@ using namespace pointcloud_to_laserscan;
 
   void IpaPointCloudToLaserScanNodelet::cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
   {
-NODELET_WARN_STREAM("cb test ");
     ros::Time start_time = ros::Time::now();
     NODELET_DEBUG_STREAM("PC with timestamp from init " << cloud_msg->header.stamp.toSec() << " recevied with a delay of " << (start_time - cloud_msg->header.stamp).toSec() << " ");
     
@@ -272,7 +271,7 @@ NODELET_WARN_STREAM("cb test ");
     }
     else
     {
-      output.ranges.assign(ranges_size, output.range_max + 1.0);
+      output.ranges.assign(ranges_size, output.range_max - 1.0);
     }
     
     // convert pointcloud to laserscan with or without filtering
