@@ -45,10 +45,6 @@
 #include <pluginlib/class_list_macros.h>
 #include <sensor_msgs/point_cloud2_iterator.h>
 
-// includes for pcl filtering
-//#include <pcl/filters/statistical_outlier_removal.h>
-//#include <pcl/range_image/range_image.h>
-
 #include <iostream>
 
 using namespace pointcloud_to_laserscan;
@@ -75,11 +71,6 @@ using namespace pointcloud_to_laserscan;
     int concurrency_level;
     private_nh_.param<int>("concurrency_level", concurrency_level, 1);
     private_nh_.param<bool>("use_inf", use_inf_, true);
-    
-    // Settings for pcl statistical outlier filter
-    //private_nh_.param<bool>("with_pcl_filtering", with_pcl_filtering_, false);
-    //private_nh_.param<int>("mean_k", mean_k_, 10);
-    //private_nh_.param<double>("std_factor", std_factor_, 0.3);
 
     configure_filter();
 
@@ -179,7 +170,6 @@ using namespace pointcloud_to_laserscan;
 
   void IpaPointCloudToLaserScanNodelet::cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
   {
-NODELET_WARN_STREAM("cb test ");
     ros::Time start_time = ros::Time::now();
     NODELET_DEBUG_STREAM("PC with timestamp from init " << cloud_msg->header.stamp.toSec() << " recevied with a delay of " << (start_time - cloud_msg->header.stamp).toSec() << " ");
     
@@ -218,34 +208,6 @@ NODELET_WARN_STREAM("cb test ");
         T.setIdentity();
     }
 
-/*
-    // Transform borders and target plane to original coordinates (saved resources to not have to transform the whole point cloud)
-    // A plane is described by all points fulfilling p= A + l1*e1 + l2*e2.
-    // Transformation to other coordinate frame with transformation T gives: p'= T(A) + l1*T(e1) + l2*T(e2)
-    // It is here assumed that both the border planes and target plane are paralell to each other -> same e1 and e2
-    // Planes for max and min height: A = [0; 0; max_height]
-    tf2::Vector3 A_max_t_frame(0, 0, max_height_);
-    tf2::Vector3 A_max_o_frame = T(A_max_t_frame);
-    NODELET_DEBUG_STREAM("A max: " << A_max_o_frame.getX() <<", "<< A_max_o_frame.getY() <<", "<< A_max_o_frame.getZ());
-
-    tf2::Vector3 A_min_t_frame(0, 0, min_height_);
-    tf2::Vector3 A_min_o_frame = T(A_min_t_frame); // want to get the orientation vector in the new coordinates
-    NODELET_DEBUG_STREAM("A min: " << A_min_o_frame.getX() <<", "<< A_min_o_frame.getY() <<", "<< A_min_o_frame.getZ());
-
-    // Transform plane basis vectors -> use only rotation
-    tf2::Vector3 ex_t_frame(1, 0, 0);
-    tf2::Vector3 ex_o_frame = tf2::quatRotate(T.getRotation(), ex_t_frame);
-    NODELET_DEBUG_STREAM("ex min: " << ex_o_frame.getX() <<", "<< ex_o_frame.getY() <<", "<< ex_o_frame.getZ());
-
-    tf2::Vector3 ey_t_frame(0, 1, 0);
-    tf2::Vector3 ey_o_frame = tf2::quatRotate(T.getRotation(), ey_t_frame);
-    NODELET_DEBUG_STREAM("ey min: " << ey_o_frame.getX() <<", "<< ey_o_frame.getY() <<", "<< ey_o_frame.getZ());
-
-    // Plane for target scan:
-    tf2::Vector3 A_target_t_frame(0, 0, 0);
-    tf2::Vector3 A_target_o_frame = T(A_target_t_frame);
-*/
-
     //build laserscan output
     sensor_msgs::LaserScan output;
     output.header = cloud_msg->header;
@@ -276,15 +238,8 @@ NODELET_WARN_STREAM("cb test ");
       output.ranges.assign(ranges_size, output.range_max - 0.0001);
     }
     
-    // convert pointcloud to laserscan with or without filtering
-    /*if(with_pcl_filtering_)
-    {
-      convert_pointcloud_to_laserscan_including_pcl_filtering(cloud, output, T, range_min_, mean_k_, std_factor_);
-    }
-    else
-    {*/
-      convert_pointcloud_to_laserscan(cloud, output, T, range_min_);
-    //}
+    // convert pointcloud to laserscan
+    convert_pointcloud_to_laserscan(cloud, output, T, range_min_);
     
     if(use_outlier_filter_)
     {
@@ -298,11 +253,16 @@ NODELET_WARN_STREAM("cb test ");
     pub_.publish(output);
   }
     
-    
+  /** 
+   * Function to project the pointcloud points within specified region to 
+   * the laser scan frame and fill out the laserscan message with the relevant ranges
+   * from the projection.
+   * Theborders for the point selection is transformed into pointcloud frame in order 
+   * save time by avoiding unnessecairy point transformations
+   */
   void IpaPointCloudToLaserScanNodelet::convert_pointcloud_to_laserscan(const sensor_msgs::PointCloud2Ptr &cloud, sensor_msgs::LaserScan &output, 
 	const tf2::Transform &T, const double range_min )
   {
-    NODELET_DEBUG_STREAM("cb without pcl ");
     // Transform borders and target plane to original coordinates (saved resources to not have to transform the whole point cloud)
     // A plane is described by all points fulfilling p= A + l1*e1 + l2*e2.
     // Transformation to other coordinate frame with transformation T gives: p'= T(A) + l1*T(e1) + l2*T(e2)
@@ -360,9 +320,8 @@ NODELET_WARN_STREAM("cb test ");
 
         double border_distance_sqared = P_max.distance2(P_min);
 
-        if ((P.distance2(P_max) > border_distance_sqared) || (P.distance2(P_min) > border_distance_sqared)) // Originaly: (*iter_z > max_height_ || *iter_z < min_height_)
+        if ((P.distance2(P_max) > border_distance_sqared) || (P.distance2(P_min) > border_distance_sqared))
         {
-            //NODELET_DEBUG("rejected for height %f not in range (%f, %f)\n", *iter_z, min_height_, max_height_);
             continue;
         }
 
@@ -371,14 +330,12 @@ NODELET_WARN_STREAM("cb test ");
 
         if (range < range_min_)
         {
-            //NODELET_DEBUG("rejected for range %f below minimum value %f. Point: (%f, %f, %f)", range, range_min_, *iter_x, *iter_y, *iter_z);
             continue;
         }
 
         double angle = atan2(lambda_y, lambda_x);
         if (angle < output.angle_min || angle > output.angle_max)
         {
-            //NODELET_DEBUG("rejected for angle %f not in range (%f, %f)\n", angle, output.angle_min, output.angle_max);
             continue;
         }
 
@@ -388,190 +345,8 @@ NODELET_WARN_STREAM("cb test ");
         {
             output.ranges[index] = range;
         }
-
-    }
-
-  }
-  
-  /*
-  void IpaPointCloudToLaserScanNodelet::convert_pointcloud_to_laserscan_including_pcl_filtering(const sensor_msgs::PointCloud2Ptr cloud, 
-	sensor_msgs::LaserScan &output, const tf2::Transform &T, const double range_min, const int mean_k, const double std_factor )
-  {
-    NODELET_DEBUG_STREAM("cb with pcl k= " << mean_k << " factor= " << std_factor);
-    // Transform borders and target plane to original coordinates (saved resources to not have to transform the whole point cloud)
-    // A plane is described by all points fulfilling p= A + l1*e1 + l2*e2.
-    // Transformation to other coordinate frame with transformation T gives: p'= T(A) + l1*T(e1) + l2*T(e2)
-    // It is here assumed that both the border planes and target plane are paralell to each other -> same e1 and e2
-    // Planes for max and min height: A = [0; 0; max_height]
-    tf2::Vector3 A_max_t_frame(0, 0, max_height_);
-    tf2::Vector3 A_max_o_frame = T(A_max_t_frame);
-    NODELET_DEBUG_STREAM("A max: " << A_max_o_frame.getX() <<", "<< A_max_o_frame.getY() <<", "<< A_max_o_frame.getZ());
-
-    tf2::Vector3 A_min_t_frame(0, 0, 0.0);//min_height_); // Uggly hack to use filter on partly reduced pointcloud still seeing the floor
-    tf2::Vector3 A_min_o_frame = T(A_min_t_frame); // want to get the orientation vector in the new coordinates
-    NODELET_DEBUG_STREAM("A min: " << A_min_o_frame.getX() <<", "<< A_min_o_frame.getY() <<", "<< A_min_o_frame.getZ());
-
-    // Transform plane basis vectors -> use only rotation
-    tf2::Vector3 ex_t_frame(1, 0, 0);
-    tf2::Vector3 ex_o_frame = tf2::quatRotate(T.getRotation(), ex_t_frame);
-    NODELET_DEBUG_STREAM("ex min: " << ex_o_frame.getX() <<", "<< ex_o_frame.getY() <<", "<< ex_o_frame.getZ());
-
-    tf2::Vector3 ey_t_frame(0, 1, 0);
-    tf2::Vector3 ey_o_frame = tf2::quatRotate(T.getRotation(), ey_t_frame);
-    NODELET_DEBUG_STREAM("ey min: " << ey_o_frame.getX() <<", "<< ey_o_frame.getY() <<", "<< ey_o_frame.getZ());
-
-    // Plane for target scan:
-    tf2::Vector3 A_target_t_frame(0, 0, 0);
-    tf2::Vector3 A_target_o_frame = T(A_target_t_frame);
-
-    // create pcl cloud objects
-    pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZ> ());
-    pcl::PointCloud<pcl::PointXYZ>::Ptr reduced_pcl_cloud(new pcl::PointCloud<pcl::PointXYZ> ());
-    
-    // convert pointcloud to pcl pointcloud
-    pcl::fromROSMsg (*cloud, *pcl_cloud);
-
-    std::vector<int> indices;
-    pcl::removeNaNFromPointCloud(*pcl_cloud,*pcl_cloud, indices);
-    indices.clear();
-    
-    int n_points = pcl_cloud->size();
-
-    // Iterate through pointcloud
-    for(int i = 0; i < n_points; i++)
-    {
-        float* iter_x = &pcl_cloud->points[i].x;
-        float* iter_y = &pcl_cloud->points[i].y;
-        float* iter_z = &pcl_cloud->points[i].z;
-        
-        if (std::isnan(*iter_x) || std::isnan(*iter_y) || std::isnan(*iter_z))
-        {
-            NODELET_DEBUG("rejected for nan in point(%f, %f, %f)\n", *iter_x, *iter_y, *iter_z);
-            continue;
-        }
-
-        //get reflection point in hight limiting planes in order to check that point lies between borders(above or below is not clearly def):
-        tf2::Vector3 P(*iter_x, *iter_y, *iter_z);
-  */
-        /**
-         * lambda x and y describes the location within the planes, which are the same for all paralell planes with
-         * aligned origin -> calculate only once for the plane at height of target frame.
-         * If assumption not hold, use one set of lambda per plane (use the A value of that specific plane like this:
-         *
-         * double lambda_x_max =  (P - A_max_o_frame).dot(ex_o_frame);
-         *
-         * For now we assume tahat a common set of lambdas hold:
-         */
-    /*
-        double lambda_x =  (P - A_target_o_frame).dot(ex_o_frame);
-        double lambda_y =  (P - A_target_o_frame).dot(ey_o_frame);
-        tf2::Vector3 P_max = A_max_o_frame + lambda_x*ex_o_frame + lambda_y*ey_o_frame;
-        tf2::Vector3 P_min = A_min_o_frame + lambda_x*ex_o_frame + lambda_y*ey_o_frame;
-
-
-        double border_distance_sqared = P_max.distance2(P_min);
-
-        if ((P.distance2(P_max) > border_distance_sqared) || (P.distance2(P_min) > border_distance_sqared)) // Originaly: (*iter_z > max_height_ || *iter_z < min_height_)
-        {
-            NODELET_DEBUG("rejected for height %f not in range (%f, %f)\n", *iter_z, min_height_, max_height_);
-            continue;
-        }
-
-        double range = hypot(lambda_x, lambda_y);
-
-
-        if (range < range_min)
-        {
-            NODELET_DEBUG("rejected for range %f below minimum value %f. Point: (%f, %f, %f)", range, range_min_, *iter_x, *iter_y,
-             *iter_z);
-            continue;
-        }
-
-        double angle = atan2(lambda_y, lambda_x);
-        if (angle < output.angle_min || angle > output.angle_max)
-        {
-            NODELET_DEBUG("rejected for angle %f not in range (%f, %f)\n", angle, output.angle_min, output.angle_max);
-            continue;
-        }
-        
-        // write to reduced pointcloud
-        reduced_pcl_cloud->points.push_back(pcl_cloud->points[i]);
-    }
-    
-    // filter reduced cloud
-    pcl_statistical_outlier_removal_filter(reduced_pcl_cloud, mean_k, std_factor);
-
-    tf2::Vector3 A_min_t_frame2(0, 0, min_height_);
-    tf2::Vector3 A_min_o_frame2 = T(A_min_t_frame2); // want to get the orientation vector in the new coordinates
-    NODELET_DEBUG_STREAM("A min: " << A_min_o_frame2.getX() <<", "<< A_min_o_frame.getY() <<", "<< A_min_o_frame.getZ());
-    
-    // project pointcloud to scan
-    n_points = reduced_pcl_cloud->size();
-    for (int j = 0; j < n_points; j++)
-    {
-        float* iter_x = &reduced_pcl_cloud->points[j].x;
-        float* iter_y = &reduced_pcl_cloud->points[j].y;
-        float* iter_z = &reduced_pcl_cloud->points[j].z;
-
-	tf2::Vector3 P(*iter_x, *iter_y, *iter_z);
-  */
-        /**
-         * lambda x and y describes the location within the planes, which are the same for all paralell planes with
-         * aligned origin -> calculate only once for the plane at height of target frame.
-         * If assumption not hold, use one set of lambda per plane (use the A value of that specific plane like this:
-         *
-         * double lambda_x_max =  (P - A_max_o_frame).dot(ex_o_frame);
-         *
-         * For now we assume tahat a common set of lambdas hold:
-         */
-  /*
-	// need to check height again do to the uggly hack above. Otherwise the previous loop would use the correct settings right away
-        double lambda_x =  (P - A_target_o_frame).dot(ex_o_frame);
-        double lambda_y =  (P - A_target_o_frame).dot(ey_o_frame);
-	tf2::Vector3 P_max = A_max_o_frame + lambda_x*ex_o_frame + lambda_y*ey_o_frame;
-        tf2::Vector3 P_min = A_min_o_frame2 + lambda_x*ex_o_frame + lambda_y*ey_o_frame;
-	double border_distance_sqared = P_max.distance2(P_min);
-
-	if ((P.distance2(P_max) > border_distance_sqared) || (P.distance2(P_min) > border_distance_sqared)) // Originaly: (*iter_z > max_height_ || *iter_z < min_height_)
-        {
-            NODELET_DEBUG("rejected for height %f not in range (%f, %f)\n", *iter_z, min_height_, max_height_);
-            continue;
-        }
-
-        double range = hypot(lambda_x, lambda_y);
-
-
-        if (range < range_min)
-        {
-            NODELET_DEBUG("rejected for range %f below minimum value %f. Point: (%f, %f, %f)", range, range_min_, *iter_x, *iter_y,
-             *iter_z);
-            continue;
-        }
-
-	double angle = atan2(lambda_y, lambda_x);
-        //overwrite range at laserscan ray if new range is smaller
-        int index = (angle - output.angle_min) / output.angle_increment;
-        if (range < output.ranges[index])
-        {
-            output.ranges[index] = range;
-        }
-
     }
   }
-  */
-
-/*
-  void IpaPointCloudToLaserScanNodelet::pcl_statistical_outlier_removal_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, const int mean_k, const double std_factor)
-  {
-      // Create the filtering object
-      pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
-      sor.setInputCloud (cloud_in);
-      //sor.setIndices(indices);
-      sor.setMeanK (mean_k);
-      sor.setStddevMulThresh (std_factor);
-      sor.filter(*cloud_in);
-  }
-  */
 
 
 PLUGINLIB_DECLARE_CLASS(ipa_pointcloud_to_laserscan, IpaPointCloudToLaserScanNodelet, pointcloud_to_laserscan::IpaPointCloudToLaserScanNodelet, nodelet::Nodelet);
