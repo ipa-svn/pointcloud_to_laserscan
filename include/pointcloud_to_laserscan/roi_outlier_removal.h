@@ -57,7 +57,7 @@
 // includes for pcl filtering
 #include <pcl_ros/point_cloud.h>
 
-namespace roi_outlier_removal
+namespace pointcloud_to_laserscan
 {
   typedef tf2_ros::MessageFilter<sensor_msgs::PointCloud2> MessageFilter;
 /**
@@ -102,7 +102,7 @@ namespace roi_outlier_removal
 
     // ROS Parameters
     unsigned int input_queue_size_;
-    std::string target_frame_;
+    std::string roi_def_frame_;
     double tolerance_;
     double min_height_, max_height_, angle_min_, angle_max_, angle_increment_, range_min_, range_max_;    
   };
