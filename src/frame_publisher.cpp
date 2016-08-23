@@ -51,5 +51,5 @@ void FramePublisher::frameBroadcastCallback(const ros::TimerEvent& event)
 	target_transform.getBasis().setRPY(target_frame_roll, target_frame_pitch, target_frame_yaw);
 
 	// Broadcast new frame
-    tf_broadcaster_.sendTransform(tf::StampedTransform(target_transform, event.current_real, base_frame_, target_frame_));
+    tf_broadcaster_.sendTransform(tf::StampedTransform(target_transform, frame_transform.stamp_, base_frame_, target_frame_));
 }
