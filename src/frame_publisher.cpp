@@ -28,7 +28,7 @@ void FramePublisher::frameBroadcastCallback(const ros::TimerEvent& event)
     try
     {
         tf_listener_.waitForTransform(base_frame_, rotation_frame_, event.current_real, ros::Duration(0.1));
-        tf_listener_.lookupTransform(base_frame_, rotation_frame_, event.current_real, frame_transform);
+        tf_listener_.lookupTransform(base_frame_, rotation_frame_, ros::Time(0), frame_transform);
     }
     catch (tf::TransformException& ex)
     {
