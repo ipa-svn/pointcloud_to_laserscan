@@ -81,7 +81,7 @@ namespace pointcloud_to_laserscan
 
     void disconnectCb();
 
-    void convert_pointcloud_to_laserscan(const sensor_msgs::PointCloud2Ptr &cloud, sensor_msgs::LaserScan &output, const tf2::Transform &T, const double range_min );
+    void convert_pointcloud_to_laserscan(const sensor_msgs::PointCloud2ConstPtr &cloud, sensor_msgs::LaserScan &output, const tf2::Transform &T, const double range_min );
 
     ros::NodeHandle nh_, private_nh_;
     ros::Publisher pub_;
@@ -91,6 +91,10 @@ namespace pointcloud_to_laserscan
     boost::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
     message_filters::Subscriber<sensor_msgs::PointCloud2> sub_;
     boost::shared_ptr<MessageFilter> message_filter_;
+
+	void testCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
+
+	ros::Subscriber sub_test_;
 
     scan_outlier_filter::ScanOutlierRemovalFilter outlier_filter_;
     // ROS Parameters
