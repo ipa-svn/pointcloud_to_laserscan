@@ -113,7 +113,7 @@ using namespace pointcloud_to_laserscan;
   void RoiOutlierRemovalNodelet::cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
   {
     ros::Time start_time = ros::Time::now();
-    NODELET_INFO_STREAM("PC with timestamp from init " << cloud_msg->header.stamp.toSec() << " recevied with a delay of " << (start_time - cloud_msg->header.stamp).toSec() << " ");
+    NODELET_DEBUG_STREAM("PC with timestamp from init " << cloud_msg->header.stamp.toSec() << " recevied with a delay of " << (start_time - cloud_msg->header.stamp).toSec() << " ");
     
     // remove leading / on frame id in case present, which is not supported by tf2
     // does not do anything if the problem dies not occur -> leave for compatibility
@@ -136,7 +136,7 @@ using namespace pointcloud_to_laserscan;
       }
       catch (tf2::TransformException ex)
       {
-        NODELET_ERROR_STREAM("Transform failure: " << ex.what());
+        NODELET_WARN_STREAM("Transform failure: " << ex.what());
         return;
       }
     }
@@ -145,11 +145,7 @@ using namespace pointcloud_to_laserscan;
         // target and source frame are the same
         T.setIdentity();
     }
-
-	NODELET_ERROR_STREAM("Got transform between " << cloud_msg->header.frame_id << " and " << roi_def_frame_);
-	NODELET_WARN_STREAM("Got transform between " << cloud_msg->header.frame_id << " and " << roi_def_frame_);
-	NODELET_INFO_STREAM("Got transform between " << cloud_msg->header.frame_id << " and " << roi_def_frame_);
-	NODELET_INFO_STREAM("Got transform between " << cloud_msg->header.frame_id << " and " << roi_def_frame_);
+	NODELET_DEBUG_STREAM("Got transform between " << cloud_msg->header.frame_id << " and " << roi_def_frame_);
 
     // create pcl cloud objects
     pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZ> ());
@@ -158,22 +154,22 @@ using namespace pointcloud_to_laserscan;
     // convert pointcloud to pcl pointcloud
     pcl::fromROSMsg (*cloud_msg, *pcl_cloud);
 
-	NODELET_ERROR_STREAM("pcl cloud assigned");
+	NODELET_DEBUG_STREAM("pcl cloud assigned");
     // Reduce pointcloud
     reduce_point_cloud_to_roi(pcl_cloud, reduced_pcl_cloud, T);
-	NODELET_ERROR_STREAM("cloud reduced");
+	NODELET_DEBUG_STREAM("cloud reduced");
 
     // assign output message
     sensor_msgs::PointCloud2 output;
 
     pcl::toROSMsg(*reduced_pcl_cloud, output);
-NODELET_ERROR_STREAM("output assigned");
+
     output.header = cloud_msg->header;
 
     // Print debug info
     ros::Time end_time = ros::Time::now();
     ros::Duration dur = end_time-start_time;
-	NODELET_ERROR_STREAM("Transform for PC took " << dur.toSec());
+	NODELET_DEBUG_STREAM("Transform for PC took " << dur.toSec());
 
     // Publish output
     pub_.publish(output);
@@ -181,7 +177,7 @@ NODELET_ERROR_STREAM("output assigned");
 	// Print debug info
 	end_time = ros::Time::now();
     dur = end_time-start_time;
-	NODELET_ERROR_STREAM("Transform and publishfor PC took " << dur.toSec());
+	NODELET_DEBUG_STREAM("Transform and publishfor PC took " << dur.toSec());
   }
   
   /**
@@ -193,7 +189,6 @@ NODELET_ERROR_STREAM("output assigned");
                                   pcl::PointCloud<pcl::PointXYZ>::Ptr reduced_pcl_cloud,
                                   const tf2::Transform &T)
   {
-    NODELET_ERROR_STREAM("In reducing PC");
     // Transform borders and target plane to original coordinates (saved resources to not have to transform the whole point cloud)
     // A plane is described by all points fulfilling p= A + l1*e1 + l2*e2.
     // Transformation to other coordinate frame with transformation T gives: p'= T(A) + l1*T(e1) + l2*T(e2)
@@ -220,7 +215,7 @@ NODELET_ERROR_STREAM("output assigned");
     tf2::Vector3 A_target_t_frame(0, 0, 0);
     tf2::Vector3 A_target_o_frame = T(A_target_t_frame);
 
-	NODELET_ERROR_STREAM("Removing nans");
+	NODELET_DEBUG_STREAM("Removing nans");
     std::vector<int> indices;
     pcl::removeNaNFromPointCloud(*pcl_cloud,*pcl_cloud, indices);
     indices.clear();
@@ -239,7 +234,7 @@ NODELET_ERROR_STREAM("output assigned");
 	double range;
 	double angle;
 
-	NODELET_ERROR_STREAM("filtering pc with " << n_points << " points ");
+	NODELET_DEBUG_STREAM("filtering pc with " << n_points << " points ");
     // Iterate through pointcloud to select points
     for(int i = 0; i < n_points; i++)
     {

@@ -127,7 +127,7 @@ using namespace pointcloud_to_laserscan;
   void IpaPointCloudToLaserScanNodelet::cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
   {
 	ros::Time start_time = ros::Time::now();
-    NODELET_INFO_STREAM("PC with timestamp from init " << cloud_msg->header.stamp.toSec() << " recevied with a delay of " << (start_time - cloud_msg->header.stamp).toSec() << " ");
+    NODELET_DEBUG_STREAM("PC with timestamp from init " << cloud_msg->header.stamp.toSec() << " recevied with a delay of " << (start_time - cloud_msg->header.stamp).toSec() << " ");
 
     // remove leading / on frame id in case present, which is not supported by tf2
     // does not do anything if the problem dies not occur -> leave for compatibility
@@ -150,7 +150,7 @@ using namespace pointcloud_to_laserscan;
       }
       catch (tf2::TransformException ex)
       {
-        NODELET_ERROR_STREAM("Transform failure: " << ex.what());
+        NODELET_WARN_STREAM("Transform failure: " << ex.what());
         return;
       }
     }
@@ -203,7 +203,7 @@ using namespace pointcloud_to_laserscan;
     NODELET_DEBUG_STREAM("Transform for PC took " << dur.toSec());
 
     pub_.publish(output);
-	NODELET_INFO_STREAM("Transform and publisch for scan took " << dur.toSec());
+	NODELET_DEBUG_STREAM("Transform and publisch for scan took " << dur.toSec());
 
   }
     
