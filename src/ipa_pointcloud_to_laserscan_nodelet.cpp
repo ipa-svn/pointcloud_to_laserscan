@@ -195,7 +195,7 @@ using namespace pointcloud_to_laserscan;
     
     if(use_outlier_filter_)
     {
-      //outlier_filter_.remove_outliers(output);
+      outlier_filter_.remove_outliers(output);
     }
 
     ros::Time end_time = ros::Time::now();
