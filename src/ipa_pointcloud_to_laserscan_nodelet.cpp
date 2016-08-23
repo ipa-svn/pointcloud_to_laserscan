@@ -99,21 +99,12 @@ using namespace pointcloud_to_laserscan;
     {
       tf2_.reset(new tf2_ros::Buffer());
       tf2_listener_.reset(new tf2_ros::TransformListener(*tf2_));
-      message_filter_.reset(new MessageFilter(sub_, *tf2_, target_frame_, input_queue_size_, nh_));
-      message_filter_->registerCallback(boost::bind(&IpaPointCloudToLaserScanNodelet::cloudCb, this, _1));
-      message_filter_->registerFailureCallback(boost::bind(&IpaPointCloudToLaserScanNodelet::failureCb, this, _1, _2));
     }
-    else // otherwise setup direct subscription
-    {
-      sub_.registerCallback(boost::bind(&IpaPointCloudToLaserScanNodelet::cloudCb, this, _1));
-    }
+    
+    pub_ = nh_.advertise<sensor_msgs::LaserScan>("scan", 10);
 
-    pub_ = nh_.advertise<sensor_msgs::LaserScan>("scan", 10,
-                                                 boost::bind(&IpaPointCloudToLaserScanNodelet::connectCb, this),
-                                                 boost::bind(&IpaPointCloudToLaserScanNodelet::disconnectCb, this));
-
-	// stuff for tet subscriber
-	sub_test_ = nh_.subscribe("cloud_in", 2, &IpaPointCloudToLaserScanNodelet::testCb, this );
+	// set subscriber and callback for input cloud
+	sub_ = nh_.subscribe("cloud_in", input_queue_size_, &IpaPointCloudToLaserScanNodelet::cloudCb, this );
   }
 
   void IpaPointCloudToLaserScanNodelet::configure_filter()
@@ -132,52 +123,7 @@ using namespace pointcloud_to_laserscan;
 
     outlier_filter_.configure(cluster_break_distance, max_noise_cluster_size, max_noise_cluster_distance);
   }
-
-  void IpaPointCloudToLaserScanNodelet::connectCb()
-  {
-    boost::mutex::scoped_lock lock(connect_mutex_);
-    if (pub_.getNumSubscribers() > 0 && sub_.getSubscriber().getNumPublishers() == 0)
-    {
-      NODELET_INFO("Got a subscriber to scan, starting subscriber to pointcloud");
-      sub_.subscribe(nh_, "cloud_in", input_queue_size_);
-    }
-  }
-
-  void IpaPointCloudToLaserScanNodelet::disconnectCb()
-  {
-    boost::mutex::scoped_lock lock(connect_mutex_);
-    if (pub_.getNumSubscribers() == 0)
-    {
-      NODELET_INFO("No subscibers to scan, shutting down subscriber to pointcloud");
-      sub_.unsubscribe();
-    }
-  }
-
-  void IpaPointCloudToLaserScanNodelet::failureCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg,
-                                               tf2_ros::filter_failure_reasons::FilterFailureReason reason)
-  {
-    NODELET_WARN_STREAM_THROTTLE(1.0, "Can't transform pointcloud from frame " << cloud_msg->header.frame_id << " to "
-        << message_filter_->getTargetFramesString());
-
-    try
-    {
-      geometry_msgs::TransformStamped T_geom = tf2_->lookupTransform(cloud_msg->header.frame_id, target_frame_, cloud_msg->header.stamp, ros::Duration(0.1));
-      NODELET_INFO_STREAM("Transform worked at retry ");
-    }
-    catch (tf2::TransformException ex)
-    {
-      NODELET_WARN_STREAM("Transform failure again after retry in failureCB, exception: " << ex.what());
-      return;
-    }
-  }
   
-  void IpaPointCloudToLaserScanNodelet::testCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
-  {
-	NODELET_INFO_STREAM("test cb start");
-	ros::Duration(1.0).sleep();
-	NODELET_INFO_STREAM("test cb end");
-  }
-
   void IpaPointCloudToLaserScanNodelet::cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
   {
 	ros::Time start_time = ros::Time::now();
@@ -245,7 +191,7 @@ using namespace pointcloud_to_laserscan;
     }
     
     // convert pointcloud to laserscan
-    //convert_pointcloud_to_laserscan(cloud_msgs, output, T, range_min_);
+    convert_pointcloud_to_laserscan(cloud_msg, output, T, range_min_);
     
     if(use_outlier_filter_)
     {

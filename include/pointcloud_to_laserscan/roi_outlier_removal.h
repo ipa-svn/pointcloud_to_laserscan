@@ -35,7 +35,6 @@
  */
 
 /*
- * Author: Paul Bovbel
  * Author: Sofie Nilsson
  */
 
@@ -51,7 +50,6 @@
 #include "tf2_ros/message_filter.h"
 #include <tf2_sensor_msgs/tf2_sensor_msgs.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include "message_filters/subscriber.h"
 #include "sensor_msgs/PointCloud2.h"
 
 // includes for pcl filtering
@@ -80,12 +78,6 @@ namespace pointcloud_to_laserscan
     virtual void onInit();
 
     void cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
-    void failureCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg,
-        tf2_ros::filter_failure_reasons::FilterFailureReason reason);
-
-    void connectCb();
-
-    void disconnectCb();
 
     void reduce_point_cloud_to_roi(const pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud,  
                                   pcl::PointCloud<pcl::PointXYZ>::Ptr reduced_pcl_cloud,
@@ -93,12 +85,11 @@ namespace pointcloud_to_laserscan
 
     ros::NodeHandle nh_, private_nh_;
     ros::Publisher pub_;
-    boost::mutex connect_mutex_;
 
     boost::shared_ptr<tf2_ros::Buffer> tf2_;
     boost::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
-    message_filters::Subscriber<sensor_msgs::PointCloud2> sub_;
-    boost::shared_ptr<MessageFilter> message_filter_;
+
+	ros::Subscriber sub_;
 
     // ROS Parameters
     unsigned int input_queue_size_;

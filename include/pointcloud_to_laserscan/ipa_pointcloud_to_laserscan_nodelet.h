@@ -51,7 +51,6 @@
 #include "tf2_ros/message_filter.h"
 #include <tf2_sensor_msgs/tf2_sensor_msgs.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include "message_filters/subscriber.h"
 #include "sensor_msgs/PointCloud2.h"
 #include <pointcloud_to_laserscan/scan_outlier_removal_filter.h>
 
@@ -74,12 +73,6 @@ namespace pointcloud_to_laserscan
     virtual void onInit();
 
     void cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
-    void failureCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg,
-        tf2_ros::filter_failure_reasons::FilterFailureReason reason);
-
-    void connectCb();
-
-    void disconnectCb();
 
     void convert_pointcloud_to_laserscan(const sensor_msgs::PointCloud2ConstPtr &cloud, sensor_msgs::LaserScan &output, const tf2::Transform &T, const double range_min );
 
@@ -89,12 +82,8 @@ namespace pointcloud_to_laserscan
 
     boost::shared_ptr<tf2_ros::Buffer> tf2_;
     boost::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
-    message_filters::Subscriber<sensor_msgs::PointCloud2> sub_;
-    boost::shared_ptr<MessageFilter> message_filter_;
 
-	void testCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
-
-	ros::Subscriber sub_test_;
+	ros::Subscriber sub_;
 
     scan_outlier_filter::ScanOutlierRemovalFilter outlier_filter_;
     // ROS Parameters

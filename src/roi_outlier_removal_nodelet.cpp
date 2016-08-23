@@ -57,7 +57,6 @@ using namespace pointcloud_to_laserscan;
   void RoiOutlierRemovalNodelet::onInit()
   {
 	NODELET_INFO_STREAM("on init");
-    boost::mutex::scoped_lock lock(connect_mutex_);
     private_nh_ = getPrivateNodeHandle();
 
     int concurrency_level;
@@ -90,18 +89,10 @@ using namespace pointcloud_to_laserscan;
     {
       tf2_.reset(new tf2_ros::Buffer());
       tf2_listener_.reset(new tf2_ros::TransformListener(*tf2_));
-      message_filter_.reset(new MessageFilter(sub_, *tf2_, roi_def_frame_, input_queue_size_, nh_));
-      message_filter_->registerCallback(boost::bind(&RoiOutlierRemovalNodelet::cloudCb, this, _1));
-      message_filter_->registerFailureCallback(boost::bind(&RoiOutlierRemovalNodelet::failureCb, this, _1, _2));
     }
-    else // otherwise setup direct subscription
-    {
-      sub_.registerCallback(boost::bind(&RoiOutlierRemovalNodelet::cloudCb, this, _1));
-    }
+	sub_ = nh_.subscribe("cloud_in", input_queue_size_, &RoiOutlierRemovalNodelet::cloudCb, this );
 
-    pub_ = nh_.advertise<sensor_msgs::PointCloud2>("cloud_out", 10,
-                                                 boost::bind(&RoiOutlierRemovalNodelet::connectCb, this),
-                                                 boost::bind(&RoiOutlierRemovalNodelet::disconnectCb, this));
+    pub_ = nh_.advertise<sensor_msgs::PointCloud2>("cloud_out", 10);
   }
 
   void RoiOutlierRemovalNodelet::configure_filter()
@@ -119,69 +110,27 @@ using namespace pointcloud_to_laserscan;
     private_nh_.param<double>("range_max", range_max_, 4.0);
   }
 
-  void RoiOutlierRemovalNodelet::connectCb()
-  {
-    boost::mutex::scoped_lock lock(connect_mutex_);
-    if (pub_.getNumSubscribers() > 0 && sub_.getSubscriber().getNumPublishers() == 0)
-    {
-      NODELET_INFO("Got a subscriber to roi cloud, starting subscriber to pointcloud");
-      sub_.subscribe(nh_, "cloud_in", input_queue_size_);
-    }
-  }
-
-  void RoiOutlierRemovalNodelet::disconnectCb()
-  {
-    boost::mutex::scoped_lock lock(connect_mutex_);
-    if (pub_.getNumSubscribers() == 0)
-    {
-      NODELET_INFO("No subscibers to roi cloud, shutting down subscriber to pointcloud");
-      sub_.unsubscribe();
-    }
-  }
-
-  void RoiOutlierRemovalNodelet::failureCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg,
-                                               tf2_ros::filter_failure_reasons::FilterFailureReason reason)
-  {
-    NODELET_ERROR_STREAM_THROTTLE(1.0, "Can't transform pointcloud from frame " << cloud_msg->header.frame_id << " to "
-        << message_filter_->getTargetFramesString());
-
-    try
-    {
-      geometry_msgs::TransformStamped T_geom = tf2_->lookupTransform(cloud_msg->header.frame_id, roi_def_frame_, cloud_msg->header.stamp, ros::Duration(tolerance_));
-      NODELET_INFO_STREAM("Transform worked at retry ");
-    }
-    catch (tf2::TransformException ex)
-    {
-      NODELET_WARN_STREAM("Transform failure again after retry in failureCB, exception: " << ex.what());
-      return;
-    }
-  }
-
   void RoiOutlierRemovalNodelet::cloudCb(const sensor_msgs::PointCloud2ConstPtr &cloud_msg)
   {
     ros::Time start_time = ros::Time::now();
     NODELET_INFO_STREAM("PC with timestamp from init " << cloud_msg->header.stamp.toSec() << " recevied with a delay of " << (start_time - cloud_msg->header.stamp).toSec() << " ");
     
-    // convert const ptr to ptr to support downsampling
-    sensor_msgs::PointCloud2Ptr cloud(boost::const_pointer_cast<sensor_msgs::PointCloud2>(cloud_msg));
-
     // remove leading / on frame id in case present, which is not supported by tf2
-    // e.g. HACK to be compatible with non tf2 supporting bag files
-    // does not do anything if the problem dies not occur -> leave for bagfile compatibility
-    if(cloud_msg->header.frame_id.find_first_of("/") == 0)
+    // does not do anything if the problem dies not occur -> leave for compatibility
+	std::string cloud_frame_id = cloud_msg->header.frame_id;
+    if(cloud_frame_id.find_first_of("/") == 0)
     { 
-      cloud->header.frame_id.erase(0,1);
+      cloud_frame_id.erase(0,1);
     }
-    // End hack for tf2 compatibility
 
     // Get frame tranformation
     tf2::Transform T;
 
-    if ((!roi_def_frame_.empty()) && !(roi_def_frame_ == cloud_msg->header.frame_id))
+    if ((!roi_def_frame_.empty()) && !(roi_def_frame_ == cloud_frame_id))
     {
       try
       {
-        geometry_msgs::TransformStamped T_geom = tf2_->lookupTransform(cloud_msg->header.frame_id, roi_def_frame_, cloud_msg->header.stamp, ros::Duration(0.1));
+        geometry_msgs::TransformStamped T_geom = tf2_->lookupTransform(cloud_frame_id, roi_def_frame_, cloud_msg->header.stamp, ros::Duration(0.1));
         // Convert geometry msgs transform to tf2 transform.
         tf2::fromMsg(T_geom.transform, T);
       }
@@ -207,7 +156,7 @@ using namespace pointcloud_to_laserscan;
     pcl::PointCloud<pcl::PointXYZ>::Ptr reduced_pcl_cloud(new pcl::PointCloud<pcl::PointXYZ> ());
     
     // convert pointcloud to pcl pointcloud
-    pcl::fromROSMsg (*cloud, *pcl_cloud);
+    pcl::fromROSMsg (*cloud_msg, *pcl_cloud);
 
 	NODELET_ERROR_STREAM("pcl cloud assigned");
     // Reduce pointcloud
