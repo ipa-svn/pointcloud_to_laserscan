@@ -272,7 +272,8 @@ NODELET_WARN_STREAM("cb test ");
     }
     else
     {
-      output.ranges.assign(ranges_size, output.range_max + 1.0);
+	  // Assign scan to almost max range since assign to max_range not allowed by assign oparator
+      output.ranges.assign(ranges_size, output.range_max - 0.0001);
     }
     
     // convert pointcloud to laserscan with or without filtering
