@@ -289,6 +289,16 @@ using namespace pointcloud_to_laserscan;
     tf2::Vector3 A_target_t_frame(0, 0, 0);
     tf2::Vector3 A_target_o_frame = T(A_target_t_frame);
 
+	// Declare help variables
+	tf2::Vector3 P;
+	double lambda_x, lambda_y;
+	tf2::Vector3 P_max;
+	tf2::Vector3 P_min;
+	double border_distance_sqared;
+	double range;
+	double angle;
+	int index;
+
     // Iterate through pointcloud
     for (sensor_msgs::PointCloud2Iterator<float>
               iter_x(*cloud, "x"), iter_y(*cloud, "y"), iter_z(*cloud, "z");
@@ -302,7 +312,7 @@ using namespace pointcloud_to_laserscan;
         }
 
         //get reflection point in hight limiting planes in order to check that point lies between borders(above or below is not clearly def):
-        tf2::Vector3 P(*iter_x, *iter_y, *iter_z);
+        P.setValue(*iter_x, *iter_y, *iter_z);
         /**
          * lambda x and y describes the location within the planes, which are the same for all paralell planes with
          * aligned origin -> calculate only once for the plane at height of target frame.
@@ -312,35 +322,31 @@ using namespace pointcloud_to_laserscan;
          *
          * For now we assume tahat a common set of lambdas hold:
          */
-        double lambda_x =  (P - A_target_o_frame).dot(ex_o_frame);
-        double lambda_y =  (P - A_target_o_frame).dot(ey_o_frame);
-        tf2::Vector3 P_max = A_max_o_frame + lambda_x*ex_o_frame + lambda_y*ey_o_frame;
-        tf2::Vector3 P_min = A_min_o_frame + lambda_x*ex_o_frame + lambda_y*ey_o_frame;
+        lambda_x =  (P - A_target_o_frame).dot(ex_o_frame);
+        lambda_y =  (P - A_target_o_frame).dot(ey_o_frame);
+        P_max = A_max_o_frame + lambda_x*ex_o_frame + lambda_y*ey_o_frame;
+        P_min = A_min_o_frame + lambda_x*ex_o_frame + lambda_y*ey_o_frame;
 
-
-        double border_distance_sqared = P_max.distance2(P_min);
-
+        border_distance_sqared = P_max.distance2(P_min);
         if ((P.distance2(P_max) > border_distance_sqared) || (P.distance2(P_min) > border_distance_sqared))
         {
             continue;
         }
 
-        double range = hypot(lambda_x, lambda_y);
-
-
-        if (range < range_min_)
+        range = hypot(lambda_x, lambda_y);
+		if (range < range_min_)
         {
             continue;
         }
 
-        double angle = atan2(lambda_y, lambda_x);
+        angle = atan2(lambda_y, lambda_x);
         if (angle < output.angle_min || angle > output.angle_max)
         {
             continue;
         }
 
         //overwrite range at laserscan ray if new range is smaller
-        int index = (angle - output.angle_min) / output.angle_increment;
+        index = (angle - output.angle_min) / output.angle_increment;
         if (range < output.ranges[index])
         {
             output.ranges[index] = range;
