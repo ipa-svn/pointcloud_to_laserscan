@@ -2,7 +2,7 @@
 /*
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2010-2012, Fraunhofer IPA
+ *  Copyright (c) 2016, Fraunhofer IPA.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -15,7 +15,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of Willow Garage, Inc. nor the names of its
+ *   * Neither the name of the copyright holder nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -39,31 +39,37 @@
  * Author: Sofie Nilsson
  */
 
+/* 
+ * The scan_outlier_removal_filter removes noise clusters with much smaller range than the surrounding points. 
+ * The filter can be configured with the following three parameters cluster_break_distance, max_noise_cluster_size, 
+ * max_noise_cluster_distance. 
+ */
+
 #ifndef IPA_POINTCLOUD_TO_LASERSCAN_SCAN_OUTLIER_REMOVAL_FILTER
 #define IPA_POINTCLOUD_TO_LASERSCAN_SCAN_OUTLIER_REMOVAL_FILTER
 
 #include <sensor_msgs/LaserScan.h>
 
-namespace scan_outlier_filter
-{
-	class ScanOutlierRemovalFilter
-	{
-	private:
-		bool filter_configured_;
-		double cluster_break_distance_; 
-		int max_noise_cluster_size_; 
-		double max_noise_cluster_distance_;
+ namespace scan_outlier_filter
+ {
+   class ScanOutlierRemovalFilter
+   {
+   private:
+    bool filter_configured_;
+    double cluster_break_distance_; 
+    int max_noise_cluster_size_; 
+    double max_noise_cluster_distance_;
 
-	public:
-		ScanOutlierRemovalFilter(): 
-			filter_configured_(false), 
-			cluster_break_distance_(0.0), 
-			max_noise_cluster_size_(0), 
-			max_noise_cluster_distance_(0.0)
-			{};
-		void configure(const double cluster_break_distance, const int max_noise_cluster_size, const double max_noise_cluster_distance);
+  public:
+    ScanOutlierRemovalFilter(): 
+    filter_configured_(false), 
+    cluster_break_distance_(0.0), 
+    max_noise_cluster_size_(0), 
+    max_noise_cluster_distance_(0.0)
+    {};
+    void configure(const double cluster_break_distance, const int max_noise_cluster_size, const double max_noise_cluster_distance);
 
-		void remove_outliers(sensor_msgs::LaserScan &scan);
-	};
+    void remove_outliers(sensor_msgs::LaserScan &scan);
+  };
 }
 #endif //IPA_POINTCLOUD_TO_LASERSCAN_SCAN_OUTLIER_REMOVAL_FILTER
